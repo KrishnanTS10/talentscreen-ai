@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalentScreen AI — Beta Access</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #0A4535 0%, #0F6E56 50%, #1D9E75 100%);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+
+    .login-container {
+      width: 100%; max-width: 420px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand { text-align: center; margin-bottom: 32px; }
+    .brand-icon {
+      width: 60px; height: 60px; background: rgba(255,255,255,0.15);
+      border-radius: 16px; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; backdrop-filter: blur(8px);
+      border: 0.5px solid rgba(255,255,255,0.2);
+    }
+    .brand-name { font-size: 26px; font-weight: 600; color: #fff; letter-spacing: -0.5px; }
+    .brand-tag { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 4px; }
+
+    .login-card {
+      background: rgba(255,255,255,0.97); border-radius: 20px;
+      padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .login-title { font-size: 18px; font-weight: 600; color: #0F6E56; margin-bottom: 6px; }
+    .login-sub { font-size: 13px; color: #5A7A6A; margin-bottom: 24px; line-height: 1.5; }
+
+    .field-label { font-size: 12px; font-weight: 600; color: #0F6E56; margin-bottom: 6px; display: block; letter-spacing: 0.3px; }
+
+    .code-input {
+      width: 100%; padding: 14px 16px;
+      font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 500;
+      letter-spacing: 3px; text-align: center; text-transform: uppercase;
+      background: #F7FAF8; border: 1.5px solid #C0DD97; border-radius: 12px;
+      color: #0F6E56; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+      margin-bottom: 16px;
+    }
+    .code-input:focus { border-color: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,0.12); background: #fff; }
+    .code-input::placeholder { color: #97C459; letter-spacing: 2px; font-size: 14px; }
+
+    .login-btn {
+      width: 100%; padding: 14px; background: #0F6E56; color: #fff;
+      border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 600; cursor: pointer; letter-spacing: 0.2px;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .login-btn:hover { background: #085041; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(15,110,86,0.3); }
+    .login-btn:active { transform: translateY(0); }
+
+    .error-msg {
+      background: #FCEBEB; border: 0.5px solid #F09595; border-radius: 10px;
+      padding: 10px 14px; font-size: 13px; color: #8B1A1A;
+      display: none; margin-bottom: 14px; text-align: center;
+    }
+    .error-msg.show { display: flex; align-items: center; gap: 7px; justify-content: center; }
+
+    .divider-line { border: none; border-top: 0.5px solid #E2EDE8; margin: 20px 0; }
+
+    .features-row { display: flex; flex-direction: column; gap: 10px; }
+    .feature-item { display: flex; align-items: flex-start; gap: 10px; }
+    .feature-icon { width: 28px; height: 28px; border-radius: 8px; background: #EAF3DE; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .feature-text { font-size: 12px; color: #5A7A6A; line-height: 1.4; }
+    .feature-text strong { color: #0F6E56; font-weight: 500; }
+
+    .beta-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9);
+      font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 20px;
+      margin-bottom: 12px; border: 0.5px solid rgba(255,255,255,0.2);
+    }
+
+    .footer-note { text-align: center; margin-top: 20px; font-size: 11px; color: rgba(255,255,255,0.5); }
+
+    /* API key setup section */
+    .api-section { margin-top: 20px; }
+    .api-toggle { font-size: 12px; color: #97C459; cursor: pointer; text-align: center; display: block; margin-top: 8px; }
+    .api-toggle:hover { color: #fff; }
+    .api-input-wrap { margin-top: 10px; display: none; }
+    .api-input-wrap.show { display: block; }
+    .api-input {
+      width: 100%; padding: 10px 14px; font-family: 'DM Mono', monospace;
+      font-size: 12px; background: rgba(255,255,255,0.1); border: 0.5px solid rgba(255,255,255,0.2);
+      border-radius: 10px; color: #fff; outline: none;
+    }
+    .api-input::placeholder { color: rgba(255,255,255,0.4); }
+    .api-input:focus { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.15); }
+    .api-save-btn {
+      margin-top: 8px; width: 100%; padding: 8px; background: rgba(255,255,255,0.15);
+      border: 0.5px solid rgba(255,255,255,0.25); border-radius: 8px; color: #fff;
+      font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .api-save-btn:hover { background: rgba(255,255,255,0.25); }
+    .api-saved { font-size: 11px; color: #97C459; text-align: center; margin-top: 6px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="brand">
+      <div class="beta-badge">
+        <i class="ti ti-flask" style="font-size:12px"></i>
+        Beta Program
+      </div>
+      <div class="brand-icon">
+        <i class="ti ti-user-search" style="font-size:28px;color:#fff"></i>
+      </div>
+      <div class="brand-name">TalentScreen AI</div>
+      <div class="brand-tag">Recruitment Productivity Suite</div>
+    </div>
+
+    <div class="login-card">
+      <div class="login-title">Welcome to the beta 👋</div>
+      <div class="login-sub">Enter your invite code to access TalentScreen AI. Don't have one? Reach out to get access.</div>
+
+      <div id="errorMsg" class="error-msg">
+        <i class="ti ti-alert-circle" style="font-size:15px"></i>
+        <span>Invalid invite code. Please check and try again.</span>
+      </div>
+
+      <label class="field-label" for="betaCode">BETA INVITE CODE</label>
+      <input
+        type="text" id="betaCode" class="code-input"
+        placeholder="XXXX0000" maxlength="12"
+        autocomplete="off" spellcheck="false"
+        onkeydown="if(event.key==='Enter') attemptLogin()"
+      >
+
+      <button class="login-btn" onclick="attemptLogin()" id="loginBtn">
+        <i class="ti ti-arrow-right" style="font-size:16px"></i>
+        Access TalentScreen AI
+      </button>
+
+      <hr class="divider-line">
+
+      <div class="features-row">
+        <div class="feature-item">
+          <div class="feature-icon"><i class="ti ti-file-search" style="font-size:14px;color:#1D9E75"></i></div>
+          <div class="feature-text"><strong>Bulk CV Screener</strong> — Screen up to 10 CVs against a JD and get instant ranked results</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon"><i class="ti ti-message-question" style="font-size:14px;color:#1D9E75"></i></div>
+          <div class="feature-text"><strong>Interview Question Generator</strong> — Role-specific questions by seniority level in seconds</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon"><i class="ti ti-layout-kanban" style="font-size:14px;color:#1D9E75"></i></div>
+          <div class="feature-text"><strong>Candidate Pipeline</strong> — 10-stage tracker with live metrics, privacy mode and CSV export</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Key Setup (for admins) -->
+    <div class="api-section">
+      <span class="api-toggle" onclick="toggleApiSection()">
+        <i class="ti ti-key" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>
+        Setup API key (admin only)
+      </span>
+      <div class="api-input-wrap" id="apiWrap">
+        <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-api03-...">
+        <button class="api-save-btn" onclick="saveApiKey()">Save API Key</button>
+        <div class="api-saved" id="apiSaved">✓ API key saved for this session</div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      TalentScreen AI · Built for HR professionals · Beta v1.0
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (AUTH.isAuthenticated()) window.location.href = 'app.html';
+
+    function attemptLogin() {
+      const code = document.getElementById('betaCode').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const btn = document.getElementById('loginBtn');
+
+      if (!code.trim()) {
+        errorMsg.classList.add('show');
+        errorMsg.querySelector('span').textContent = 'Please enter your invite code.';
+        return;
+      }
+
+      btn.innerHTML = '<div class="spinner"></div> Verifying…';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        if (AUTH.login(code)) {
+          btn.innerHTML = '<i class="ti ti-check" style="font-size:16px"></i> Access granted!';
+          btn.style.background = '#1D9E75';
+          setTimeout(() => window.location.href = 'app.html', 600);
+        } else {
+          errorMsg.classList.add('show');
+          errorMsg.querySelector('span').textContent = 'Invalid invite code. Please check and try again.';
+          btn.innerHTML = '<i class="ti ti-arrow-right" style="font-size:16px"></i> Access TalentScreen AI';
+          btn.disabled = false;
+          document.getElementById('betaCode').value = '';
+          document.getElementById('betaCode').focus();
+        }
+      }, 500);
+    }
+
+    function toggleApiSection() {
+      const wrap = document.getElementById('apiWrap');
+      wrap.classList.toggle('show');
+      const existing = localStorage.getItem('ts_api_key');
+      if (existing) document.getElementById('apiKeyInput').value = existing;
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) return;
+      localStorage.setItem('ts_api_key', key);
+      document.getElementById('apiSaved').style.display = 'block';
+      setTimeout(() => document.getElementById('apiSaved').style.display = 'none', 2000);
+    }
+
+    // Auto-uppercase input
+    document.getElementById('betaCode').addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+      document.getElementById('errorMsg').classList.remove('show');
+    });
+  </script>
+</body>
+</html>

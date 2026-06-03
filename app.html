@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalentScreen AI</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    /* ── APP LAYOUT ── */
+    body { background: var(--ts-bg); }
+
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── TOP NAV ── */
+    .topnav {
+      background: #0F6E56; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 58px; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    }
+    .topnav-brand { display: flex; align-items: center; gap: 10px; }
+    .topnav-icon { width: 32px; height: 32px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .topnav-name { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+    .topnav-tag { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+    .topnav-right { display: flex; align-items: center; gap: 8px; }
+    .topnav-btn { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.1); border: 0.5px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: background 0.15s; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+    .topnav-btn:hover { background: rgba(255,255,255,0.2); }
+    .topnav-btn.active { background: rgba(255,255,255,0.22); }
+
+    /* ── TAB NAV ── */
+    .tab-nav { background: #fff; border-bottom: 0.5px solid #E2EDE8; padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
+    .tab-btn { display: flex; align-items: center; gap: 7px; padding: 14px 20px; font-size: 13px; font-weight: 500; color: #5A7A6A; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'DM Sans', sans-serif; }
+    .tab-btn:hover { color: #0F6E56; }
+    .tab-btn.active { color: #0F6E56; border-bottom-color: #0F6E56; }
+
+    /* ── MAIN CONTENT ── */
+    .main-content { flex: 1; padding: 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── SCREENER ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* ── CV QUEUE ── */
+    .cv-queue { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+    .cv-item { display: flex; align-items: center; gap: 10px; background: var(--ts-green-light); border: 0.5px solid var(--ts-green-border); border-radius: var(--radius-md); padding: 8px 12px; }
+    .cv-num { width: 22px; height: 22px; border-radius: 50%; background: #0F6E56; color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cv-name { font-size: 13px; color: #085041; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cv-remove { background: none; border: none; cursor: pointer; color: #3B6D11; display: flex; align-items: center; padding: 2px; }
+    .cv-remove:hover { color: var(--ts-red); }
+    .add-more-btn { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #0F6E56; background: none; border: 0.5px dashed #97C459; border-radius: var(--radius-md); padding: 8px 14px; cursor: pointer; position: relative; transition: background 0.12s; font-family: 'DM Sans', sans-serif; font-weight: 500; }
+    .add-more-btn:hover { background: var(--ts-green-light); }
+    .add-more-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .count-pill { font-size: 11px; background: #0F6E56; color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+
+    /* ── QUESTIONS ── */
+    .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    .type-card { border: 0.5px solid #97C459; border-radius: var(--radius-md); padding: 12px 10px; cursor: pointer; text-align: center; transition: background 0.12s; }
+    .type-card:hover { background: var(--ts-green-light); }
+    .type-card.active { background: var(--ts-green-light); border-color: #1D9E75; border-width: 1.5px; }
+    .type-card-label { font-size: 12px; font-weight: 600; color: #085041; }
+    .type-card-desc { font-size: 10px; color: #3B6D11; margin-top: 2px; }
+    .qty-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .qty-chip { font-size: 12px; padding: 6px 16px; border-radius: 20px; border: 0.5px solid #97C459; background: #fff; color: #0F6E56; cursor: pointer; font-weight: 500; transition: background 0.12s; }
+    .qty-chip.active { background: #0F6E56; color: #fff; border-color: #0F6E56; }
+    .qty-chip:hover:not(.active) { background: var(--ts-green-light); }
+
+    /* ── PIPELINE ── */
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .metric-card { background: #fff; border: 0.5px solid #E2EDE8; border-radius: var(--radius-md); padding: 12px 14px; }
+    .metric-label { font-size: 11px; color: #5A7A6A; margin-bottom: 3px; font-weight: 500; }
+    .metric-value { font-size: 22px; font-weight: 600; color: #1A2E25; }
+    .metric-sub { font-size: 11px; color: #3B6D11; margin-top: 2px; }
+    .pipeline-scroll { overflow-x: auto; margin-bottom: 16px; }
+    .pipeline-row { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; min-width: 680px; }
+    .stage-col { border-radius: var(--radius-sm); overflow: hidden; }
+    .stage-header { padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600; min-height: 28px; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+    .stage-count { font-size: 16px; font-weight: 600; text-align: center; padding: 4px 0 7px; }
+    .controls-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: flex-end; }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 90px; }
+    .ctrl-label { font-size: 11px; color: #0F6E56; font-weight: 600; }
+    .add-cand-btn { display: flex; align-items: center; gap: 5px; padding: 8px 14px; background: #0F6E56; border: none; border-radius: var(--radius-md); font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; height: 36px; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+    .add-cand-btn:hover { background: #085041; }
+    .section-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--ts-green-light); border: 0.5px solid var(--ts-green-border); border-radius: var(--radius-md); cursor: pointer; user-select: none; transition: background 0.12s; }
+    .section-toggle:hover { background: #C0DD97; }
+    .stog-label { font-size: 13px; font-weight: 600; color: #085041; display: flex; align-items: center; gap: 8px; }
+    .stog-right { font-size: 11px; color: #3B6D11; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+    .table-section { overflow: hidden; transition: max-height 0.3s ease; }
+    .table-section.collapsed { max-height: 0 !important; }
+    .table-wrap { overflow-x: auto; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 660px; }
+    th { background: var(--ts-green-light); color: #085041; font-weight: 600; padding: 9px 10px; text-align: left; border-bottom: 0.5px solid var(--ts-green-border); font-size: 11px; white-space: nowrap; }
+    td { padding: 8px 10px; border-bottom: 0.5px solid #E2EDE8; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #F7FAF8; }
+    .privacy-banner { background: var(--ts-green-light); border: 0.5px solid var(--ts-green-border); border-radius: var(--radius-md); padding: 8px 12px; font-size: 12px; color: #085041; display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .chevron { font-size: 13px; transition: transform 0.25s; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* ── SCREEN RESULT ── */
+    #screenResult, #qResult {
+      margin-top: 16px;
+      background: #fff; border: 0.5px solid #E2EDE8;
+      border-radius: var(--radius-lg); padding: 16px;
+      display: none;
+    }
+    #screenResult.show, #qResult.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <div class="topnav-brand">
+      <div class="topnav-icon"><i class="ti ti-user-search" style="font-size:17px;color:#fff"></i></div>
+      <div>
+        <div class="topnav-name">TalentScreen AI</div>
+        <div class="topnav-tag">Recruitment Productivity Suite · Beta</div>
+      </div>
+    </div>
+    <div class="topnav-right">
+      <button class="topnav-btn" id="privacyToggle" onclick="togglePrivacy()">
+        <i class="ti ti-eye-off" style="font-size:12px" id="privacyIcon"></i>
+        <span id="privacyLabel">Privacy on</span>
+      </button>
+      <button class="topnav-btn" onclick="AUTH.logout()">
+        <i class="ti ti-logout" style="font-size:12px"></i>
+        Sign out
+      </button>
+    </div>
+  </nav>
+
+  <!-- TAB NAV -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('screener')" id="tab-screener">
+      <i class="ti ti-file-search" style="font-size:15px"></i>CV Screener
+    </button>
+    <button class="tab-btn" onclick="switchTab('questions')" id="tab-questions">
+      <i class="ti ti-message-question" style="font-size:15px"></i>Interview Questions
+    </button>
+    <button class="tab-btn" onclick="switchTab('pipeline')" id="tab-pipeline">
+      <i class="ti ti-layout-kanban" style="font-size:15px"></i>Pipeline
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- ═══ PANEL 1: CV SCREENER ═══ -->
+    <div class="panel active" id="panel-screener">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i>
+        Upload or paste a Job Description and up to 10 CVs, then click Screen to get an AI-ranked report.
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="section-label"><i class="ti ti-file-description" style="font-size:13px"></i>Job description</div>
+          <div class="upload-box" id="jdBox">
+            <input type="file" accept=".pdf,.txt,.docx,.doc" id="jdFile" onchange="handleJD(this)">
+            <i class="ti ti-upload" style="font-size:24px;color:#1D9E75"></i>
+            <div class="upload-label"><strong>Click to upload</strong> or drag & drop</div>
+            <div class="fmt-row"><span class="fmt-badge">PDF</span><span class="fmt-badge">DOCX</span><span class="fmt-badge">TXT</span></div>
+            <div id="jdStatus" style="margin-top:4px"></div>
+          </div>
+          <div class="or-div">— or paste below —</div>
+          <textarea class="input-field" id="jdText" placeholder="Paste job description here…" oninput="onJDPaste()"></textarea>
+        </div>
+
+        <div>
+          <div class="section-label" style="justify-content:space-between">
+            <span><i class="ti ti-users" style="font-size:13px"></i>Candidate CVs <span class="count-pill" id="cvCountPill">0/10</span></span>
+          </div>
+          <div class="alert alert-info" style="font-size:11px;padding:7px 10px;margin-bottom:8px">
+            <i class="ti ti-info-circle" style="font-size:13px;flex-shrink:0"></i>Upload up to 10 CVs — all screened and ranked.
+          </div>
+          <div class="cv-queue" id="cvQueue"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="add-more-btn" id="addMoreBtn">
+              <input type="file" accept=".pdf,.txt,.docx,.doc" multiple id="cvFileInput" onchange="handleCVs(this)">
+              <i class="ti ti-plus" style="font-size:14px"></i>Add CVs
+            </button>
+            <button class="add-more-btn" onclick="clearCVs()" style="border-style:solid">
+              <i class="ti ti-trash" style="font-size:14px"></i>Clear all
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="s1err"></div>
+      <button class="btn-primary" style="width:100%" id="screenBtn" onclick="screenAll()">
+        <i class="ti ti-search" style="font-size:16px"></i>Screen candidates
+      </button>
+      <div id="screenResult"></div>
+    </div>
+
+    <!-- ═══ PANEL 2: INTERVIEW QUESTIONS ═══ -->
+    <div class="panel" id="panel-questions">
+      <div class="two-col">
+        <div>
+          <label class="section-label" for="roleSelect"><i class="ti ti-briefcase" style="font-size:13px"></i>HR role</label>
+          <select class="input-field" id="roleSelect" onchange="onRoleChange()">
+            <option value="">— Select a role —</option>
+            <optgroup label="Talent Acquisition">
+              <option>Recruiter</option><option>Senior Recruiter</option>
+              <option>TA Manager</option><option>Head of Talent Acquisition</option>
+            </optgroup>
+            <optgroup label="HR Business Partnering">
+              <option>HR Business Partner</option><option>Senior HRBP</option>
+              <option value="Manager HRBP">Manager HRBP</option><option>Head of HRBP</option>
+            </optgroup>
+            <optgroup label="HR Leadership">
+              <option>HR Manager</option><option>HR Director</option>
+              <option>Chief People Officer</option><option>CHRO</option>
+            </optgroup>
+            <optgroup label="Specialist HR">
+              <option>L&D Manager</option><option>C&B Manager</option>
+              <option>ER Manager</option><option>DEI Lead</option>
+              <option>HR Analyst</option><option>OD Manager</option>
+            </optgroup>
+            <option value="custom">Other (type below)</option>
+          </select>
+        </div>
+        <div>
+          <label class="section-label" for="senioritySelect"><i class="ti ti-stairs" style="font-size:13px"></i>Seniority level</label>
+          <select class="input-field" id="senioritySelect">
+            <option>Junior (0–3 years)</option>
+            <option selected>Mid-level (3–7 years)</option>
+            <option>Senior (7–12 years)</option>
+            <option>Leadership (12+ years)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="customRoleGroup" style="display:none;margin-bottom:14px">
+        <label class="section-label" for="customRole"><i class="ti ti-pencil" style="font-size:13px"></i>Type your role</label>
+        <input type="text" class="input-field" id="customRole" placeholder="e.g. People Operations Lead">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label class="section-label" for="q2jd"><i class="ti ti-file-description" style="font-size:13px"></i>Job description <span style="font-weight:400;color:#5A7A6A">(optional — improves relevance)</span></label>
+        <textarea class="input-field" id="q2jd" placeholder="Paste the JD here for more targeted questions…"></textarea>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section-label" style="margin-bottom:10px"><i class="ti ti-list-check" style="font-size:13px"></i>Question types</div>
+      <div class="type-grid">
+        <div class="type-card active" id="type-behavioural" onclick="toggleType('behavioural')">
+          <i class="ti ti-brain" style="font-size:20px;color:#1D9E75;display:block;margin-bottom:5px"></i>
+          <div class="type-card-label">Behavioural</div>
+          <div class="type-card-desc">Tell me about a time…</div>
+        </div>
+        <div class="type-card active" id="type-situational" onclick="toggleType('situational')">
+          <i class="ti ti-bulb" style="font-size:20px;color:#1D9E75;display:block;margin-bottom:5px"></i>
+          <div class="type-card-label">Situational</div>
+          <div class="type-card-desc">What would you do if…</div>
+        </div>
+        <div class="type-card active" id="type-technical" onclick="toggleType('technical')">
+          <i class="ti ti-tool" style="font-size:20px;color:#1D9E75;display:block;margin-bottom:5px"></i>
+          <div class="type-card-label">Technical</div>
+          <div class="type-card-desc">Role-specific knowledge</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-bottom:10px"><i class="ti ti-hash" style="font-size:13px"></i>Number of questions</div>
+      <div class="qty-row">
+        <div class="qty-chip" onclick="setQty(5)">5</div>
+        <div class="qty-chip active" onclick="setQty(10)">10</div>
+        <div class="qty-chip" onclick="setQty(15)">15</div>
+        <div class="qty-chip" onclick="setQty(20)">20</div>
+      </div>
+
+      <div id="s2err"></div>
+      <button class="btn-primary" style="width:100%" id="genBtn" onclick="generateQs()">
+        <i class="ti ti-wand" style="font-size:16px"></i>Generate questions
+      </button>
+      <div id="qResult"></div>
+    </div>
+
+    <!-- ═══ PANEL 3: PIPELINE ═══ -->
+    <div class="panel" id="panel-pipeline">
+      <div class="privacy-banner" id="privacyBanner">
+        <i class="ti ti-shield-lock" style="font-size:14px;flex-shrink:0"></i>
+        Privacy mode is on — candidate names and notes are masked. Toggle off in the top bar to reveal.
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Total candidates</div><div class="metric-value" id="m-total">0</div><div class="metric-sub">in pipeline</div></div>
+        <div class="metric-card"><div class="metric-label">Hired</div><div class="metric-value" id="m-hired">0</div><div class="metric-sub" id="m-hired-rate">0% conversion</div></div>
+        <div class="metric-card"><div class="metric-label">Offer acceptance</div><div class="metric-value" id="m-offer-rate">—</div><div class="metric-sub">offers vs hired</div></div>
+        <div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value" id="m-shortlisted">0</div><div class="metric-sub">past screening</div></div>
+      </div>
+
+      <div class="pipeline-scroll">
+        <div class="pipeline-row">
+          <div class="stage-col"><div class="stage-header" style="background:#E6F1FB;color:#185FA5">Applied</div><div class="stage-count" id="sc-Applied" style="color:#185FA5">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#FAEEDA;color:#854F0B">Screening</div><div class="stage-count" id="sc-Screening" style="color:#854F0B">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#E1F5EE;color:#0F6E56">Shortlisted</div><div class="stage-count" id="sc-Shortlisted" style="color:#0F6E56">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#EEEDFE;color:#534AB7">Interview R1</div><div class="stage-count" id="sc-Interview-R1" style="color:#534AB7">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#AFA9EC;color:#26215C">Interview R2</div><div class="stage-count" id="sc-Interview-R2" style="color:#26215C">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#7F77DD;color:#fff">Interview R3</div><div class="stage-count" id="sc-Interview-R3" style="color:#7F77DD">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#FBEAF0;color:#993556">BG Check</div><div class="stage-count" id="sc-BG-Check" style="color:#993556">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#EAF3DE;color:#3B6D11">Offer</div><div class="stage-count" id="sc-Offer" style="color:#3B6D11">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#9FE1CB;color:#04342C">Joining</div><div class="stage-count" id="sc-Joining" style="color:#04342C">0</div></div>
+          <div class="stage-col"><div class="stage-header" style="background:#C0DD97;color:#085041">Hired</div><div class="stage-count" id="sc-Hired" style="color:#085041">0</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="section-label" style="margin-bottom:12px"><i class="ti ti-user-plus" style="font-size:13px"></i>Add candidate</div>
+        <div class="controls-row">
+          <div class="ctrl-group"><div class="ctrl-label">Name</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-name" placeholder="Full name"></div>
+          <div class="ctrl-group" style="max-width:70px"><div class="ctrl-label">Score</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-score" placeholder="85"></div>
+          <div class="ctrl-group" style="max-width:140px"><div class="ctrl-label">Stage</div>
+            <select class="input-field" style="padding:8px 10px;font-size:13px" id="p-stage">
+              <option>Applied</option><option>Screening</option><option>Shortlisted</option>
+              <option>Interview R1</option><option>Interview R2</option><option>Interview R3</option>
+              <option>BG Check</option><option>Offer</option><option>Joining</option><option>Hired</option>
+            </select>
+          </div>
+          <div class="ctrl-group"><div class="ctrl-label">Notes</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-notes" placeholder="Recruiter notes"></div>
+          <button class="add-cand-btn" onclick="addCandidate()"><i class="ti ti-plus" style="font-size:14px"></i>Add</button>
+        </div>
+      </div>
+
+      <div class="section-toggle" onclick="toggleList()">
+        <div class="stog-label">
+          <i class="ti ti-users" style="font-size:14px"></i>
+          Candidate list
+          <span style="font-size:11px;background:#0F6E56;color:#fff;padding:2px 9px;border-radius:20px" id="listPill">0</span>
+        </div>
+        <div class="stog-right">
+          <button class="btn-secondary" onclick="event.stopPropagation();exportCSV()" style="padding:4px 10px;font-size:11px">
+            <i class="ti ti-download" style="font-size:12px"></i>Export CSV
+          </button>
+          <span id="listLabel">Show</span>
+          <i class="ti ti-chevron-down chevron" id="listChevron"></i>
+        </div>
+      </div>
+
+      <div class="table-section collapsed" id="tableSection" style="max-height:700px">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th><th>Candidate</th><th>Score</th><th>Stage</th>
+                <th>Date added</th><th>Notes</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="pipelineBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="ts-footer">
+    <div class="ts-dot"></div>
+    <span>TalentScreen AI · Beta v1.0 · Built for volume hiring</span>
+    <div class="ts-dot"></div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="auth.js"></script>
+<script>
+  // Auth guard — redirect if not logged in
+  AUTH.guard();
+
+  // PDF worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  // Show/hide result panels when content is added
+  const origRenderScreen = window.renderScreenResults;
+  const origRenderQ = window.renderQuestions;
+</script>
+<script src="app.js"></script>
+<script>
+  // Show result containers after render
+  const _origRender = renderScreenResults;
+  window.renderScreenResults = function(c) {
+    _origRender(c);
+    document.getElementById('screenResult').classList.add('show');
+  };
+  const _origQ = renderQuestions;
+  window.renderQuestions = function(q, r, s) {
+    _origQ(q, r, s);
+    document.getElementById('qResult').classList.add('show');
+  };
+</script>
+</body>
+</html>
