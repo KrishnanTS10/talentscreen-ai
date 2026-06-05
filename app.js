@@ -566,25 +566,27 @@ const FUNCTION_ROLES = {
 };
 
 function onFunctionChange() {
-  const fn = document.getElementById('functionSelect').value;
-  const roleSelect = document.getElementById('roleSelect');
-  const customFnGroup = document.getElementById('customFunctionGroup');
-  const customRoleGroup = document.getElementById('customRoleGroup');
+  var fn = document.getElementById('functionSelect').value;
+  var roleSelect = document.getElementById('roleSelect');
+  var customFnGroup = document.getElementById('customFunctionGroup');
+  var customRoleGroup = document.getElementById('customRoleGroup');
 
-  // Show/hide custom function input
-  customFnGroup.style.display = fn === 'custom' ? 'flex' : 'none';
+  customFnGroup.style.display = fn === 'custom' ? 'block' : 'none';
   customRoleGroup.style.display = 'none';
 
   if (!fn || fn === 'custom') {
     roleSelect.innerHTML = '<option value="">— Select function first —</option><option value="custom">Other (type below)</option>';
-    if (fn === 'custom') customRoleGroup.style.display = 'flex';
+    if (fn === 'custom') { customRoleGroup.style.display = 'block'; }
     return;
   }
 
-  const roles = FUNCTION_ROLES[fn] || [];
-  roleSelect.innerHTML = `<option value="">— Select a role —</option>
-    ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
-    <option value="custom">Other (type below)</option>`;
+  var roles = FUNCTION_ROLES[fn] || [];
+  var opts = '<option value="">— Select a role —</option>';
+  for (var i = 0; i < roles.length; i++) {
+    opts += '<option value="' + roles[i] + '">' + roles[i] + '</option>';
+  }
+  opts += '<option value="custom">Other (type below)</option>';
+  roleSelect.innerHTML = opts;
 }
 
 function onRoleChange() {
@@ -638,9 +640,8 @@ async function generateQs() {
   resultEl.innerHTML = '<div class="alert alert-info"><div class="spinner-dark"></div>&nbsp;Generating ' + selQty + ' questions…</div>';
 
   const qTokens = calcQMaxTokens(selQty);
-  const prompt = `Generate ${selQty} interview questions for ${functionName} function. Role: ${role}, Level: ${seniority}, Types: ${types}.
-${jd ? `JD: ${cleanText(jd, 1000)}` : ''}
-JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to_listen_for":""}]}`;
+  var jdPart = jd ? ('JD: ' + cleanText(jd, 1000)) : '';
+  var prompt = 'Generate ' + selQty + ' interview questions for ' + functionName + ' function. Role: ' + role + ', Level: ' + seniority + ', Types: ' + types + '. ' + jdPart + ' Return JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to_listen_for":""}]}';
 
   try {
     const raw = await callClaude(prompt, qTokens);
@@ -937,7 +938,6 @@ function updateMetrics() {
   const hired = pCandidates.filter(c => c.stage === 'Hired').length;
   const offers = pCandidates.filter(c => ['Offer', 'Joining', 'Hired'].includes(c.stage)).length;
   const shortlisted = pCandidates.filter(c => !['Applied', 'Screening'].includes(c.stage)).length;
-  const stale = pCandidates.filter(c => c.stage.startsWith('Interview') && daysSince(c.stageDate || c.date) > 7).length;
   const rejected = pCandidates.filter(c => c.stage === 'Rejected').length;
 
   document.getElementById('m-total').textContent = total;
@@ -946,8 +946,6 @@ function updateMetrics() {
   document.getElementById('m-offer-rate').textContent = offers > 0 ? Math.round(hired / offers * 100) + '%' : '—';
   document.getElementById('m-shortlisted').textContent = shortlisted;
   document.getElementById('listPill').textContent = pCandidates.filter(c => c.stage !== 'Rejected').length;
-  const staleEl = document.getElementById('m-stale');
-  if (staleEl) { staleEl.textContent = stale; document.getElementById('m-stale-label').textContent = stale > 0 ? '⚠ need follow-up' : 'no action needed'; }
 
   PIPELINE_STAGES.forEach(s => {
     const el = document.getElementById('sc-' + s.replace(/ /g, '-'));
