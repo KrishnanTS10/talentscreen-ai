@@ -697,20 +697,220 @@ function copyQuestions() {
 }
 
 // ══════════════════════════════════════════
-// TOOL 3: PIPELINE
+// TOOL 3: CROSS-FUNCTIONAL PIPELINE
 // ══════════════════════════════════════════
-const PIPELINE_STAGES = ['Applied', 'Screening', 'Shortlisted', 'Interview R1', 'Interview R2', 'Interview R3', 'BG Check', 'Offer', 'Joining', 'Hired', 'Rejected'];
-const REJECTION_REASONS = ['Overqualified', 'Underqualified', 'Salary Mismatch', 'Culture Fit', 'Better Candidate Selected', 'Role Cancelled', 'Candidate Withdrew', 'Failed Assessment', 'Failed Background Check', 'Other'];
+
+const PIPELINE_STAGES = ['Applied','Screening','Shortlisted','Interview R1','Interview R2','Interview R3','BG Check','Offer','Joining','Hired','Rejected'];
+const REJECTION_REASONS = ['Overqualified','Underqualified','Salary Mismatch','Culture Fit','Better Candidate Selected','Role Cancelled','Candidate Withdrew','Failed Assessment','Failed Background Check','Other'];
+
 let privacyOn = true;
 let listVisible = false;
-const pCandidates = [];
+let activeRoleId = null;
 
+// ── ROLES DATA ──
+const roles = [
+  {
+    id: 'role-1',
+    title: 'Manager HRBP',
+    function: 'HR',
+    status: 'Active',
+    headcount: 1,
+    candidates: [
+      {id:1, name:'Farinaaz Lilaowalla', score:91, stage:'Shortlisted', date:'03/06/2026', stageDate:'03/06/2026', notes:'Highest JD alignment — PMS, manpower, GPTW.', rejectionReason:''},
+      {id:2, name:'Sumit Gurjar',         score:89, stage:'Shortlisted', date:'03/06/2026', stageDate:'03/06/2026', notes:'Chartered MCIPD, Amazon + Landmark.', rejectionReason:''},
+      {id:3, name:'Louise Pickin',        score:87, stage:'Interview R1', date:'03/06/2026', stageDate:'03/06/2026', notes:'Honeywell META SHRBP — near-perfect peer role.', rejectionReason:''},
+      {id:4, name:'Urmila Murthy',        score:84, stage:'Interview R1', date:'03/06/2026', stageDate:'03/06/2026', notes:'100% Emiratization compliance. Probe PMS & ER.', rejectionReason:''},
+      {id:5, name:'Natalie Canning',      score:82, stage:'Applied',     date:'03/06/2026', stageDate:'03/06/2026', notes:'Al Futtaim — strong Emiratization results.', rejectionReason:''},
+      {id:6, name:'Rose Francis Alapatt', score:80, stage:'Applied',     date:'03/06/2026', stageDate:'03/06/2026', notes:'20+ yrs, good engagement & L&D.', rejectionReason:''},
+      {id:7, name:'Deborah Joseph',       score:78, stage:'Screening',   date:'03/06/2026', stageDate:'03/06/2026', notes:'Dubai Islamic Bank TM. CIPD L7 in progress.', rejectionReason:''},
+      {id:8, name:'Nishtha Arya',         score:75, stage:'Screening',   date:'03/06/2026', stageDate:'03/06/2026', notes:'Al Boom Marine — smaller scope.', rejectionReason:''},
+      {id:9, name:'Ana Mason',            score:72, stage:'Rejected',    date:'03/06/2026', stageDate:'03/06/2026', notes:'FMCG/Manufacturing focus.', rejectionReason:'Better Candidate Selected'},
+      {id:10,name:'Malgo Dabrowska',      score:68, stage:'Rejected',    date:'03/06/2026', stageDate:'03/06/2026', notes:'Fujifilm MEA — scope below expectation.', rejectionReason:'Underqualified'},
+    ]
+  }
+];
+
+let nextRoleId = 2;
+let nextCandId = 100;
+
+// ── HELPER FUNCTIONS ──
+function initials(n) { return n.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase(); }
+function maskName(n) { return n.split(' ').map(p=>p[0]+'•'.repeat(Math.min(p.length-1,4))).join(' '); }
+function todayStr() { var d=new Date(); return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear(); }
+function daysSince(ds) { if(!ds) return 0; var p=ds.split('/'); var diff=Date.now()-new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0])).getTime(); return Math.floor(diff/(1000*60*60*24)); }
+
+function stageColor(s) {
+  var m = {'Applied':'background:#E6F1FB;color:#185FA5','Screening':'background:#FAEEDA;color:#854F0B','Shortlisted':'background:#E1F5EE;color:#0F6E56','Interview R1':'background:#EEEDFE;color:#534AB7','Interview R2':'background:#AFA9EC;color:#26215C','Interview R3':'background:#7F77DD;color:#fff','BG Check':'background:#FBEAF0;color:#993556','Offer':'background:#EAF3DE;color:#3B6D11','Joining':'background:#9FE1CB;color:#04342C','Hired':'background:#C0DD97;color:#085041','Rejected':'background:#FCEBEB;color:#8B1A1A'};
+  return m[s] || '';
+}
+
+function statusStyle(s) {
+  if(s==='Active') return 'background:#EAF3DE;color:#085041';
+  if(s==='On Hold') return 'background:#FAEEDA;color:#854F0B';
+  return 'background:#F0F0F0;color:#555';
+}
+
+function rankBadge(i) {
+  var styles = ['background:#EF9F27;color:#412402','background:#B4B2A9;color:#2C2C2A','background:#97C459;color:#173404'];
+  var style = i < 3 ? styles[i] : 'background:#EEE;color:#666';
+  return '<span style="font-size:10px;font-weight:600;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;'+style+'">'+(i+1)+'</span>';
+}
+
+function daysInStageBadge(c) {
+  var days = daysSince(c.stageDate || c.date);
+  var isInterview = c.stage && c.stage.startsWith('Interview');
+  var warn = isInterview && days > 7;
+  var color = warn ? '#FCEBEB;color:#8B1A1A' : days > 14 ? '#FEF3DC;color:#7A4A00' : 'var(--color-background-secondary);color:var(--color-text-secondary)';
+  return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:'+color+';white-space:nowrap">'+(warn?'⚠ ':'')+days+'d</span>';
+}
+
+// ── LEVEL 1: ROLES DASHBOARD ──
+var currentMetricFilter = 'all';
+
+function setMetricFilter(f) {
+  currentMetricFilter = f;
+  ['all','active','offer','filled'].forEach(function(k) {
+    var el = document.getElementById('mc-'+k);
+    if(el) {
+      el.style.borderColor = k===f ? '#0F6E56' : 'transparent';
+      el.style.background = k===f ? '#EAF3DE' : 'var(--color-background-secondary)';
+    }
+  });
+  var banner = document.getElementById('metricFilterBanner');
+  var msgs = {all:null,active:'Showing Active roles only',offer:'Showing roles with candidates at Offer stage',filled:'Showing filled roles'};
+  if(banner) {
+    if(f==='all'){banner.style.display='none';}
+    else{banner.style.display='flex';document.getElementById('metricFilterText').textContent=msgs[f];}
+  }
+  renderRolesDashboard();
+}
+
+function filterRoles() { currentMetricFilter='all'; renderRolesDashboard(); }
+
+function showAddRoleForm() { document.getElementById('addRoleForm').style.display='block'; }
+function hideAddRoleForm() { document.getElementById('addRoleForm').style.display='none'; }
+
+function addRole() {
+  var title = document.getElementById('newRoleTitle').value.trim();
+  var fn = document.getElementById('newRoleFunction').value;
+  var status = document.getElementById('newRoleStatus').value;
+  var hc = parseInt(document.getElementById('newRoleHC').value) || 1;
+  if(!title) { alert('Please enter a job title.'); return; }
+  if(!fn) { alert('Please select a function.'); return; }
+  roles.push({ id:'role-'+nextRoleId++, title:title, function:fn, status:status, headcount:hc, filled:false, candidates:[] });
+  document.getElementById('newRoleTitle').value='';
+  document.getElementById('newRoleFunction').value='';
+  document.getElementById('newRoleHC').value='';
+  hideAddRoleForm();
+  renderRolesDashboard();
+}
+
+function renderRolesDashboard() {
+  var fnFilter = document.getElementById('filterFunction').value;
+  var stFilter = document.getElementById('filterStatus').value;
+  var filtered = roles.filter(function(r) {
+    return (!fnFilter || r.function===fnFilter) && (!stFilter || r.status===stFilter);
+  });
+  if(currentMetricFilter==='active') filtered=filtered.filter(function(r){return r.status==='Active';});
+  else if(currentMetricFilter==='offer') filtered=filtered.filter(function(r){return r.candidates.some(function(c){return c.stage==='Offer';});});
+  else if(currentMetricFilter==='filled') filtered=filtered.filter(function(r){return r.filled;});
+
+  // Metrics
+  var totalCands = roles.reduce(function(a,r){return a+r.candidates.length;},0);
+  var totalHired = roles.reduce(function(a,r){return a+r.candidates.filter(function(c){return c.stage==='Hired';}).length;},0);
+  var activeRoles = roles.filter(function(r){return r.status==='Active';}).length;
+  var totalOffer = roles.reduce(function(a,r){return a+r.candidates.filter(function(c){return c.stage==='Offer';}).length;},0);
+  var totalFilled = roles.filter(function(r){return r.filled;}).length;
+  document.getElementById('rm-total').textContent = roles.length;
+  document.getElementById('rm-active').textContent = activeRoles;
+  document.getElementById('rm-offer').textContent = totalOffer;
+  document.getElementById('rm-filled').textContent = totalFilled;
+
+  var tbody = document.getElementById('rolesTableBody');
+  if(!filtered.length) {
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--color-text-secondary);font-size:13px"><i class="ti ti-inbox" style="font-size:16px;vertical-align:-3px;margin-right:6px"></i>No roles found — click Add role to create one</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(r) {
+    var cands = r.candidates.filter(function(c){return c.stage!=='Rejected';});
+    var shortlisted = r.candidates.filter(function(c){return !['Applied','Screening','Rejected'].includes(c.stage);}).length;
+    var inInterview = r.candidates.filter(function(c){return c.stage&&c.stage.startsWith('Interview');}).length;
+    var inOffer = r.candidates.filter(function(c){return ['Offer','Joining'].includes(c.stage);}).length;
+    var hired = r.candidates.filter(function(c){return c.stage==='Hired';}).length;
+
+    return '<tr style="cursor:pointer" onclick="openRolePipeline(\''+r.id+'\')">'
+      +'<td style="font-weight:600;color:var(--color-text-primary);padding:10px 12px">'
+        +'<div style="font-size:13px">'+r.title+'</div>'
+        +'<div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">HC: '+r.headcount+'</div>'
+      +'</td>'
+      +'<td style="padding:10px 12px"><span style="font-size:11px;padding:2px 9px;border-radius:20px;background:#EAF3DE;color:#085041">'+r.function+'</span></td>'
+      +'<td style="padding:10px 12px"><span style="font-size:11px;padding:2px 9px;border-radius:20px;'+statusStyle(r.status)+'">'+r.status+'</span></td>'
+      +'<td style="text-align:center;font-weight:600;color:var(--color-text-primary);padding:10px 12px">'+r.candidates.length+'</td>'
+      +'<td style="text-align:center;padding:10px 12px"><span style="font-size:12px;font-weight:600;color:#0F6E56">'+shortlisted+'</span></td>'
+      +'<td style="text-align:center;padding:10px 12px"><span style="font-size:12px;font-weight:600;color:#534AB7">'+inInterview+'</span></td>'
+      +'<td style="text-align:center;padding:10px 12px"><span style="font-size:12px;font-weight:600;color:#3B6D11">'+inOffer+'</span></td>'
+      +'<td style="text-align:center;padding:10px 12px"><span style="font-size:12px;font-weight:600;color:#085041">'+hired+'</span></td>'
+      +'<td style="padding:10px 12px">'
+        +'<button onclick="event.stopPropagation();openRolePipeline(\''+r.id+'\')" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#EAF3DE;color:#085041;border:0.5px solid #C0DD97;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:\'DM Sans\',sans-serif">'
+          +'<i class="ti ti-arrow-right" style="font-size:12px"></i>View'
+        +'</button>'
+        +' <button onclick="event.stopPropagation();deleteRole(\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:13px;padding:4px" title="Delete role"><i class="ti ti-trash"></i></button>'
+      +'</td>'
+    +'</tr>';
+  }).join('');
+}
+
+function deleteRole(id) {
+  if(!confirm('Delete this role and all its candidates?')) return;
+  var idx = roles.findIndex(function(r){return r.id===id;});
+  if(idx>-1) roles.splice(idx,1);
+  renderRolesDashboard();
+}
+
+// ── LEVEL 2: INDIVIDUAL ROLE PIPELINE ──
+function openRolePipeline(roleId) {
+  activeRoleId = roleId;
+  var role = roles.find(function(r){return r.id===roleId;});
+  if(!role) return;
+
+  document.getElementById('view-roles').style.display = 'none';
+  document.getElementById('view-pipeline').style.display = 'block';
+
+  document.getElementById('activeRoleName').textContent = role.title;
+  document.getElementById('activeRoleFunction').textContent = role.function;
+  var statusEl = document.getElementById('activeRoleStatus');
+  statusEl.textContent = role.status;
+  statusEl.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:20px;'+statusStyle(role.status);
+
+  listVisible = false;
+  document.getElementById('tableSection').classList.add('collapsed');
+  document.getElementById('listLabel').textContent = 'Show';
+  document.getElementById('listChevron').classList.remove('open');
+
+  renderPipeline();
+}
+
+function backToRoles() {
+  activeRoleId = null;
+  document.getElementById('view-pipeline').style.display = 'none';
+  document.getElementById('view-roles').style.display = 'block';
+  renderRolesDashboard();
+}
+
+function getActiveCandidates() {
+  if(!activeRoleId) return [];
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  return role ? role.candidates : [];
+}
+
+// ── PRIVACY ──
 function togglePrivacy() {
   privacyOn = !privacyOn;
   document.getElementById('privacyIcon').className = privacyOn ? 'ti ti-eye-off' : 'ti ti-eye';
   document.getElementById('privacyLabel').textContent = privacyOn ? 'Privacy on' : 'Privacy off';
-  const banner = document.getElementById('privacyBanner');
-  if (banner) banner.style.display = privacyOn ? 'flex' : 'none';
+  var banner = document.getElementById('privacyBanner');
+  if(banner) banner.style.display = privacyOn ? 'flex' : 'none';
   renderPipeline();
 }
 
@@ -721,211 +921,151 @@ function toggleList() {
   document.getElementById('listChevron').classList.toggle('open', listVisible);
 }
 
-function initials(n) { return n.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(); }
-function maskName(n) { return n.split(' ').map(p => p[0] + '•'.repeat(Math.min(p.length - 1, 4))).join(' '); }
-
-function stageColor(s) {
-  const m = {
-    'Applied':'background:#E6F1FB;color:#185FA5','Screening':'background:#FAEEDA;color:#854F0B',
-    'Shortlisted':'background:#E1F5EE;color:#0F6E56','Interview R1':'background:#EEEDFE;color:#534AB7',
-    'Interview R2':'background:#AFA9EC;color:#26215C','Interview R3':'background:#7F77DD;color:#fff',
-    'BG Check':'background:#FBEAF0;color:#993556','Offer':'background:#EAF3DE;color:#3B6D11',
-    'Joining':'background:#9FE1CB;color:#04342C','Hired':'background:#C0DD97;color:#085041',
-    'Rejected':'background:#FCEBEB;color:#8B1A1A'
-  };
-  return m[s] || '';
-}
-
-function rankBadge(i) {
-  const styles = ['background:#EF9F27;color:#412402','background:#B4B2A9;color:#2C2C2A','background:#97C459;color:#173404'];
-  const style = styles[i] || 'background:#EEE;color:#666';
-  return `<span style="font-size:10px;font-weight:600;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;${style}">${i + 1}</span>`;
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
-}
-
-// ── IMPROVEMENT 5: Days in Stage ──
-function daysSince(dateStr) {
-  if (!dateStr) return 0;
-  const [d, m, y] = dateStr.split('/').map(Number);
-  const diff = Date.now() - new Date(y, m - 1, d).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-function daysInStageBadge(c) {
-  const days = daysSince(c.stageDate || c.date);
-  const isInterview = c.stage.startsWith('Interview');
-  const warn = isInterview && days > 7;
-  const color = warn ? '#FCEBEB;color:#8B1A1A' : days > 14 ? '#FEF3DC;color:#7A4A00' : '#F0F0F0;color:#555';
-  return `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${color};white-space:nowrap" title="Days in current stage">
-    ${warn ? '⚠ ' : ''}${days}d
-  </span>`;
-}
-
+// ── CANDIDATE ACTIONS ──
 function addCandidate() {
-  const name = document.getElementById('p-name').value.trim();
-  const score = parseInt(document.getElementById('p-score').value) || 0;
-  const stage = document.getElementById('p-stage').value;
-  const notes = document.getElementById('p-notes').value.trim();
-  if (!name) { alert('Please enter a candidate name.'); return; }
-  pCandidates.push({ id: Date.now(), name, score, stage, date: todayStr(), stageDate: todayStr(), notes });
-  pCandidates.sort((a, b) => b.score - a.score);
-  document.getElementById('p-name').value = '';
-  document.getElementById('p-score').value = '';
-  document.getElementById('p-notes').value = '';
+  if(!activeRoleId) return;
+  var name = document.getElementById('p-name').value.trim();
+  var score = parseInt(document.getElementById('p-score').value)||0;
+  var stage = document.getElementById('p-stage').value;
+  var notes = document.getElementById('p-notes').value.trim();
+  if(!name) { alert('Please enter a candidate name.'); return; }
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  if(role) {
+    role.candidates.push({id:nextCandId++, name:name, score:score, stage:stage, date:todayStr(), stageDate:todayStr(), notes:notes, rejectionReason:''});
+    role.candidates.sort(function(a,b){return b.score-a.score;});
+  }
+  document.getElementById('p-name').value='';
+  document.getElementById('p-score').value='';
+  document.getElementById('p-notes').value='';
   renderPipeline();
 }
 
 function removePCandidate(id) {
-  const idx = pCandidates.findIndex(c => c.id === id);
-  if (idx > -1) pCandidates.splice(idx, 1);
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  if(role) { var idx=role.candidates.findIndex(function(c){return c.id===id;}); if(idx>-1) role.candidates.splice(idx,1); }
   renderPipeline();
 }
 
 function updatePStage(id, s) {
-  const c = pCandidates.find(c => c.id === id);
-  if (!c) return;
-  if (s === 'Rejected') {
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  if(!role) return;
+  var c = role.candidates.find(function(c){return c.id===id;});
+  if(!c) return;
+  if(s==='Rejected') {
     showRejectModal(id);
-    // Reset dropdown to current stage visually
-    const sel = document.querySelector(`select[onchange="updatePStage(${id},this.value)"]`);
-    if (sel) sel.value = c.stage;
+    var sel = document.querySelector('select[onchange="updatePStage('+id+',this.value)"]');
+    if(sel) sel.value = c.stage;
     return;
   }
-  c.stage = s;
-  c.stageDate = todayStr();
-  c.rejectionReason = '';
+  c.stage=s; c.stageDate=todayStr(); c.rejectionReason='';
   renderPipeline();
 }
 
 function showRejectModal(id) {
-  const c = pCandidates.find(c => c.id === id);
-  if (!c) return;
-  const existing = document.getElementById('rejectModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  var c = role ? role.candidates.find(function(c){return c.id===id;}) : null;
+  if(!c) return;
+  var existing = document.getElementById('rejectModal');
+  if(existing) existing.remove();
+  var modal = document.createElement('div');
   modal.id = 'rejectModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
-  modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <div style="width:36px;height:36px;border-radius:50%;background:#FCEBEB;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-user-x" style="font-size:18px;color:#E24B4A"></i>
-        </div>
-        <div>
-          <div style="font-size:15px;font-weight:700;color:#1A2E25">Reject candidate</div>
-          <div style="font-size:12px;color:#5A7A6A">${c.name}</div>
-        </div>
-      </div>
-      <p style="font-size:13px;color:#5A7A6A;margin:12px 0 16px;line-height:1.5">This will move the candidate to the Rejected section. Please select a reason.</p>
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;font-weight:600;color:#8B1A1A;display:block;margin-bottom:6px;letter-spacing:0.3px">REASON FOR REJECTION</label>
-        <select id="rejectReasonSelect" style="width:100%;padding:10px 12px;font-size:13px;font-family:'DM Sans',sans-serif;border:1.5px solid #F09595;border-radius:10px;color:#1A2E25;background:#fff;cursor:pointer;outline:none">
-          <option value="">— Select a reason —</option>
-          ${REJECTION_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
-        </select>
-      </div>
-      <div style="display:flex;gap:10px">
-        <button onclick="document.getElementById('rejectModal').remove()" style="flex:1;padding:10px;background:#F7FAF8;border:0.5px solid #E2EDE8;border-radius:10px;font-size:13px;font-weight:500;color:#5A7A6A;cursor:pointer;font-family:'DM Sans',sans-serif">Cancel</button>
-        <button onclick="confirmReject(${id})" style="flex:1;padding:10px;background:#E24B4A;border:none;border-radius:10px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">Confirm Rejection</button>
-      </div>
-    </div>`;
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+      +'<div style="width:36px;height:36px;border-radius:50%;background:#FCEBEB;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-user-x" style="font-size:18px;color:#E24B4A"></i></div>'
+      +'<div><div style="font-size:15px;font-weight:600;color:#1A2E25">Reject candidate</div><div style="font-size:12px;color:#5A7A6A">'+c.name+'</div></div>'
+    +'</div>'
+    +'<p style="font-size:13px;color:#5A7A6A;margin:0 0 14px;line-height:1.5">Select a reason for rejection.</p>'
+    +'<div style="margin-bottom:16px">'
+      +'<label style="font-size:11px;font-weight:600;color:#8B1A1A;display:block;margin-bottom:6px">REASON FOR REJECTION</label>'
+      +'<select id="rejectReasonSelect" style="width:100%;padding:10px 12px;font-size:13px;font-family:\'DM Sans\',sans-serif;border:1.5px solid #F09595;border-radius:10px;color:#1A2E25;background:#fff;cursor:pointer">'
+        +'<option value="">— Select a reason —</option>'
+        +REJECTION_REASONS.map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('')
+      +'</select>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px">'
+      +'<button onclick="document.getElementById(\'rejectModal\').remove()" style="flex:1;padding:10px;background:#F7FAF8;border:0.5px solid #E2EDE8;border-radius:10px;font-size:13px;font-weight:500;color:#5A7A6A;cursor:pointer;font-family:\'DM Sans\',sans-serif">Cancel</button>'
+      +'<button onclick="confirmReject('+id+')" style="flex:1;padding:10px;background:#E24B4A;border:none;border-radius:10px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:\'DM Sans\',sans-serif">Confirm Rejection</button>'
+    +'</div>'
+  +'</div>';
   document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
 }
 
 function confirmReject(id) {
-  const reason = document.getElementById('rejectReasonSelect').value;
-  if (!reason) { alert('Please select a rejection reason.'); return; }
-  const c = pCandidates.find(c => c.id === id);
-  if (c) {
-    c.stage = 'Rejected';
-    c.stageDate = todayStr();
-    c.rejectionReason = reason;
+  var reason = document.getElementById('rejectReasonSelect').value;
+  if(!reason) { alert('Please select a rejection reason.'); return; }
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  if(role) {
+    var c = role.candidates.find(function(c){return c.id===id;});
+    if(c) { c.stage='Rejected'; c.stageDate=todayStr(); c.rejectionReason=reason; }
   }
   document.getElementById('rejectModal').remove();
   renderPipeline();
 }
 
 function restoreCandidate(id) {
-  const c = pCandidates.find(c => c.id === id);
-  if (c) {
-    c.stage = 'Applied';
-    c.stageDate = todayStr();
-    c.rejectionReason = '';
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  if(role) {
+    var c = role.candidates.find(function(c){return c.id===id;});
+    if(c) { c.stage='Applied'; c.stageDate=todayStr(); c.rejectionReason=''; }
   }
   renderPipeline();
 }
 
+// ── RENDER PIPELINE ──
 function renderPipeline() {
-  const tbody = document.getElementById('pipelineBody');
-  const rejectedBody = document.getElementById('rejectedBody');
-  const rejectedSection = document.getElementById('rejectedSection');
-  if (!tbody) return;
+  var pCandidates = getActiveCandidates();
+  var tbody = document.getElementById('pipelineBody');
+  var rejectedSection = document.getElementById('rejectedSection');
+  var rejectedBody = document.getElementById('rejectedBody');
+  if(!tbody) return;
 
-  const active = pCandidates.filter(c => c.stage !== 'Rejected');
-  const rejected = pCandidates.filter(c => c.stage === 'Rejected');
+  var active = pCandidates.filter(function(c){return c.stage!=='Rejected';});
+  var rejected = pCandidates.filter(function(c){return c.stage==='Rejected';});
 
-  // ── Active candidates ──
-  if (!active.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#5A7A6A;font-size:13px"><i class="ti ti-inbox" style="font-size:18px;vertical-align:-4px;margin-right:8px"></i>No candidates yet — add one above or import from CV Screener</td></tr>';
+  // Active candidates
+  if(!active.length) {
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--color-text-secondary);font-size:13px"><i class="ti ti-inbox" style="font-size:18px;vertical-align:-4px;margin-right:8px"></i>No candidates yet — add one above or screen CVs</td></tr>';
   } else {
-    tbody.innerHTML = active.map((c, i) => {
-      const dn = privacyOn
-        ? `<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">${initials(c.name)}</span><span style="font-family:'DM Mono',monospace;font-size:12px;color:#5A7A6A;letter-spacing:1px">${maskName(c.name)}</span>`
-        : `<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">${initials(c.name)}</span><span style="font-weight:500">${c.name}</span>`;
-      const nt = privacyOn
-        ? `<span style="font-size:11px;color:#5A7A6A;display:inline-flex;align-items:center;gap:3px"><i class="ti ti-lock" style="font-size:11px"></i>Hidden</span>`
-        : `<span style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#5A7A6A;display:block" title="${c.notes}">${c.notes || '—'}</span>`;
-      const stagesForSelect = PIPELINE_STAGES.filter(s => s !== 'Rejected');
-      return `<tr>
-        <td>${rankBadge(i)}</td>
-        <td style="white-space:nowrap">${dn}</td>
-        <td>
-          <div style="width:45px;height:5px;background:#E2EDE8;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:4px">
-            <div style="height:100%;width:${c.score}%;background:#1D9E75;border-radius:4px"></div>
-          </div>
-          <span style="font-size:12px;font-weight:600;color:#0F6E56">${c.score}</span>
-        </td>
-        <td>
-          <select style="font-size:10px;padding:3px 6px;border:0.5px solid #97C459;border-radius:20px;font-family:'DM Sans',sans-serif;cursor:pointer;${stageColor(c.stage)}" onchange="updatePStage(${c.id},this.value)">
-            ${stagesForSelect.map(s => `<option value="${s}" ${s === c.stage ? 'selected' : ''}>${s}</option>`).join('')}
-            <option value="Rejected" style="color:#E24B4A;font-weight:600">⊗ Reject</option>
-          </select>
-        </td>
-        <td>${daysInStageBadge(c)}</td>
-        <td style="color:#5A7A6A;font-size:11px">${c.date}</td>
-        <td>${nt}</td>
-        <td><button onclick="removePCandidate(${c.id})" style="background:none;border:none;cursor:pointer;color:#5A7A6A;font-size:14px" aria-label="Remove"><i class="ti ti-x"></i></button></td>
-      </tr>`;
+    var stagesForSelect = PIPELINE_STAGES.filter(function(s){return s!=='Rejected';});
+    tbody.innerHTML = active.map(function(c,i) {
+      var dn = privacyOn
+        ? '<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">'+initials(c.name)+'</span><span style="font-size:12px;color:var(--color-text-secondary)">'+maskName(c.name)+'</span>'
+        : '<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">'+initials(c.name)+'</span><span style="font-weight:500">'+c.name+'</span>';
+      var nt = privacyOn
+        ? '<span style="font-size:11px;color:var(--color-text-secondary);display:inline-flex;align-items:center;gap:3px"><i class="ti ti-lock" style="font-size:11px"></i>Hidden</span>'
+        : '<span style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--color-text-secondary);display:block" title="'+c.notes+'">'+( c.notes||'—')+'</span>';
+      return '<tr>'
+        +'<td>'+rankBadge(i)+'</td>'
+        +'<td style="white-space:nowrap">'+dn+'</td>'
+        +'<td><div style="width:45px;height:5px;background:#E2EDE8;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:4px"><div style="height:100%;width:'+c.score+'%;background:#1D9E75;border-radius:4px"></div></div><span style="font-size:12px;font-weight:600;color:#0F6E56">'+c.score+'</span></td>'
+        +'<td><select style="font-size:10px;padding:3px 6px;border:0.5px solid #97C459;border-radius:20px;font-family:\'DM Sans\',sans-serif;cursor:pointer;'+stageColor(c.stage)+'" onchange="updatePStage('+c.id+',this.value)">'+stagesForSelect.map(function(s){return '<option value="'+s+'"'+(s===c.stage?' selected':'')+'>'+s+'</option>';}).join('')+'<option value="Rejected" style="color:#E24B4A;font-weight:600">⊗ Reject</option></select></td>'
+        +'<td>'+daysInStageBadge(c)+'</td>'
+        +'<td style="color:var(--color-text-secondary);font-size:11px">'+c.date+'</td>'
+        +'<td>'+nt+'</td>'
+        +'<td><button onclick="removePCandidate('+c.id+')" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:14px"><i class="ti ti-x"></i></button></td>'
+      +'</tr>';
     }).join('');
   }
 
-  // ── Rejected section ──
-  if (rejectedSection) {
-    rejectedSection.style.display = rejected.length ? 'block' : 'none';
-  }
-  if (rejectedBody && rejected.length) {
-    rejectedBody.innerHTML = rejected.map(c => {
-      const dn = privacyOn
-        ? `<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">${initials(c.name)}</span><span style="font-family:'DM Mono',monospace;font-size:12px;color:#8B1A1A;letter-spacing:1px">${maskName(c.name)}</span>`
-        : `<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">${initials(c.name)}</span><span style="font-weight:500;color:#8B1A1A;text-decoration:line-through">${c.name}</span>`;
-      return `<tr style="background:#FFF8F8">
-        <td style="white-space:nowrap">${dn}</td>
-        <td><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FCEBEB;color:#8B1A1A;white-space:nowrap"><i class="ti ti-ban" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Rejected</span></td>
-        <td><span style="font-size:11px;padding:2px 9px;border-radius:20px;background:#FEF3DC;color:#7A4A00">${c.rejectionReason || '—'}</span></td>
-        <td style="color:#5A7A6A;font-size:11px">${c.stageDate || c.date}</td>
-        <td>
-          <button onclick="restoreCandidate(${c.id})" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;background:#EAF3DE;color:#085041;border:0.5px solid #C0DD97;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500">
-            <i class="ti ti-rotate" style="font-size:12px"></i>Restore
-          </button>
-          <button onclick="removePCandidate(${c.id})" style="background:none;border:none;cursor:pointer;color:#F09595;font-size:14px;margin-left:4px" aria-label="Delete"><i class="ti ti-trash"></i></button>
-        </td>
-      </tr>`;
+  // Rejected section
+  if(rejectedSection) rejectedSection.style.display = rejected.length ? 'block' : 'none';
+  if(rejectedBody && rejected.length) {
+    rejectedBody.innerHTML = rejected.map(function(c) {
+      var dn = privacyOn
+        ? '<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">'+initials(c.name)+'</span><span style="font-size:12px;color:#8B1A1A">'+maskName(c.name)+'</span>'
+        : '<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">'+initials(c.name)+'</span><span style="font-weight:500;color:#8B1A1A;text-decoration:line-through">'+c.name+'</span>';
+      return '<tr style="background:#FFF8F8">'
+        +'<td style="padding:8px 10px">'+dn+'</td>'
+        +'<td style="padding:8px 10px"><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FCEBEB;color:#8B1A1A"><i class="ti ti-ban" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Rejected</span></td>'
+        +'<td style="padding:8px 10px"><span style="font-size:11px;padding:2px 9px;border-radius:20px;background:#FEF3DC;color:#7A4A00">'+( c.rejectionReason||'—')+'</span></td>'
+        +'<td style="padding:8px 10px;color:var(--color-text-secondary);font-size:11px">'+( c.stageDate||c.date)+'</td>'
+        +'<td style="padding:8px 10px">'
+          +'<button onclick="restoreCandidate('+c.id+')" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;background:#EAF3DE;color:#085041;border:0.5px solid #C0DD97;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:500"><i class="ti ti-rotate" style="font-size:12px"></i>Restore</button>'
+          +' <button onclick="removePCandidate('+c.id+')" style="background:none;border:none;cursor:pointer;color:#F09595;font-size:14px"><i class="ti ti-trash"></i></button>'
+        +'</td>'
+      +'</tr>';
     }).join('');
     document.getElementById('rejectedCountPill').textContent = rejected.length;
   }
@@ -934,38 +1074,100 @@ function renderPipeline() {
 }
 
 function updateMetrics() {
-  const total = pCandidates.length;
-  const hired = pCandidates.filter(c => c.stage === 'Hired').length;
-  const offers = pCandidates.filter(c => ['Offer', 'Joining', 'Hired'].includes(c.stage)).length;
-  const shortlisted = pCandidates.filter(c => !['Applied', 'Screening'].includes(c.stage)).length;
-  const rejected = pCandidates.filter(c => c.stage === 'Rejected').length;
+  var pCandidates = getActiveCandidates();
+  var total = pCandidates.length;
+  var hired = pCandidates.filter(function(c){return c.stage==='Hired';}).length;
+  var offers = pCandidates.filter(function(c){return ['Offer','Joining','Hired'].includes(c.stage);}).length;
+  var shortlisted = pCandidates.filter(function(c){return !['Applied','Screening','Rejected'].includes(c.stage);}).length;
 
-  document.getElementById('m-total').textContent = total;
-  document.getElementById('m-hired').textContent = hired;
-  document.getElementById('m-hired-rate').textContent = (total > 0 ? Math.round(hired / total * 100) : 0) + '% conversion';
-  document.getElementById('m-offer-rate').textContent = offers > 0 ? Math.round(hired / offers * 100) + '%' : '—';
-  document.getElementById('m-shortlisted').textContent = shortlisted;
-  document.getElementById('listPill').textContent = pCandidates.filter(c => c.stage !== 'Rejected').length;
+  var mTotal=document.getElementById('m-total'); if(mTotal) mTotal.textContent=total;
+  var mHired=document.getElementById('m-hired'); if(mHired) mHired.textContent=hired;
+  var mRate=document.getElementById('m-hired-rate'); if(mRate) mRate.textContent=(total>0?Math.round(hired/total*100):0)+'% conversion';
+  var mOffer=document.getElementById('m-offer-rate'); if(mOffer) mOffer.textContent=offers>0?Math.round(hired/offers*100)+'%':'—';
+  var mShort=document.getElementById('m-shortlisted'); if(mShort) mShort.textContent=shortlisted;
+  var lPill=document.getElementById('listPill'); if(lPill) lPill.textContent=pCandidates.filter(function(c){return c.stage!=='Rejected';}).length;
 
-  PIPELINE_STAGES.forEach(s => {
-    const el = document.getElementById('sc-' + s.replace(/ /g, '-'));
-    if (el) el.textContent = pCandidates.filter(c => c.stage === s).length;
+  PIPELINE_STAGES.forEach(function(s) {
+    var el = document.getElementById('sc-'+s.replace(/ /g,'-'));
+    if(el) el.textContent = pCandidates.filter(function(c){return c.stage===s;}).length;
   });
-  const rejEl = document.getElementById('sc-Rejected');
-  if (rejEl) rejEl.textContent = pCandidates.filter(c => c.stage === 'Rejected').length;
 }
 
-function exportCSV() {
-  if (!pCandidates.length) { alert('No candidates to export yet.'); return; }
-  const headers = ['Rank', 'Candidate', 'Score', 'Stage', 'Rejection Reason', 'Days in Stage', 'Date Added', 'Notes'];
-  const rows = pCandidates.map((c, i) => [i + 1, c.name, c.score, c.stage, c.rejectionReason || '', daysSince(c.stageDate || c.date), c.date, c.notes || ''].map(v => `"${v}"`).join(','));
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'TalentScreen_Pipeline.csv';
+// ── IMPORT FROM SCREENER ──
+function addAllToPipeline() {
+  if(!lastScreenResults.length) return;
+  var jd = jdState.text || document.getElementById('jdText').value.trim();
+  var roleTitle = 'Screened Role';
+  var roleFunction = 'HR';
+
+  // Try to detect role from JD
+  if(jd) {
+    var jdLower = jd.toLowerCase();
+    if(jdLower.includes('finance')||jdLower.includes('financial')) roleFunction='Finance';
+    else if(jdLower.includes('market')) roleFunction='Marketing';
+    else if(jdLower.includes('sales')) roleFunction='Sales';
+    else if(jdLower.includes('supply')||jdLower.includes('logistics')) roleFunction='Supply Chain';
+    else if(jdLower.includes('it ')||jdLower.includes('technology')||jdLower.includes('software')) roleFunction='IT';
+    else if(jdLower.includes('legal')||jdLower.includes('compliance')) roleFunction='Legal';
+    else if(jdLower.includes('operations')) roleFunction='Operations';
+  }
+
+  // Create a new role for this screening
+  var newRole = { id:'role-'+nextRoleId++, title:roleTitle, function:roleFunction, status:'Active', headcount:1, filled:false, candidates:[] };
+  lastScreenResults.forEach(function(c) {
+    newRole.candidates.push({
+      id: nextCandId++,
+      name: c.name,
+      score: c.score,
+      stage: 'Applied',
+      date: todayStr(),
+      stageDate: todayStr(),
+      notes: c.verdict+' — '+(c.matched_skills||[]).slice(0,3).join(', '),
+      rejectionReason: ''
+    });
+  });
+  newRole.candidates.sort(function(a,b){return b.score-a.score;});
+  roles.push(newRole);
+
+  // Switch to pipeline tab and open the new role
+  switchTab('pipeline');
+  setTimeout(function(){ openRolePipeline(newRole.id); }, 100);
+
+  var btn = event.target.closest('button');
+  if(btn) {
+    btn.innerHTML='<i class="ti ti-check" style="font-size:14px"></i>Added to Pipeline';
+    btn.style.background='#EAF3DE'; btn.style.color='#085041';
+    setTimeout(function(){ btn.innerHTML='<i class="ti ti-layout-kanban" style="font-size:14px"></i>Add all to Pipeline'; btn.style.background=''; btn.style.color=''; },2500);
+  }
+}
+
+// ── EXPORT ──
+function exportRoleCSV() {
+  var pCandidates = getActiveCandidates();
+  if(!pCandidates.length) { alert('No candidates to export.'); return; }
+  var role = roles.find(function(r){return r.id===activeRoleId;});
+  var headers = ['Rank','Candidate','Score','Stage','Rejection Reason','Days in Stage','Date Added','Notes'];
+  var rows = pCandidates.map(function(c,i){ return [i+1,c.name,c.score,c.stage,c.rejectionReason||'',daysSince(c.stageDate||c.date),c.date,c.notes||''].map(function(v){return '"'+v+'"';}).join(','); });
+  var csv = [headers.join(',')].concat(rows).join('\n');
+  var blob = new Blob([csv],{type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href=url; a.download='TalentScreen_'+(role?role.title.replace(/ /g,'_'):'Pipeline')+'.csv';
   a.click(); URL.revokeObjectURL(url);
 }
+
+// ── REJECTED TOGGLE ──
+var rejectedVisible = false;
+function toggleRejected() {
+  rejectedVisible = !rejectedVisible;
+  var wrap = document.getElementById('rejectedTableWrap');
+  var label = document.getElementById('rejectedLabel');
+  var chevron = document.getElementById('rejectedChevron');
+  if(wrap) wrap.style.maxHeight = rejectedVisible ? '600px' : '0';
+  if(label) label.textContent = rejectedVisible ? 'Hide' : 'Show';
+  if(chevron) chevron.style.transform = rejectedVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
 
 document.addEventListener('DOMContentLoaded', () => { renderPipeline(); });
 

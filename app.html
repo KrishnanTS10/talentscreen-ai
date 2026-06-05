@@ -300,82 +300,242 @@
 
     <!-- ═══ PANEL 3: PIPELINE ═══ -->
     <div class="panel" id="panel-pipeline">
-      <div class="privacy-banner" id="privacyBanner">
-        <i class="ti ti-shield-lock" style="font-size:14px;flex-shrink:0"></i>
-        Privacy mode is on — candidate names and notes are masked. Toggle off in the top bar to reveal.
-      </div>
 
-      <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr)">
-        <div class="metric-card"><div class="metric-label">Total candidates</div><div class="metric-value" id="m-total">0</div><div class="metric-sub">in pipeline</div></div>
-        <div class="metric-card"><div class="metric-label">Hired</div><div class="metric-value" id="m-hired">0</div><div class="metric-sub" id="m-hired-rate">0% conversion</div></div>
-        <div class="metric-card"><div class="metric-label">Offer acceptance</div><div class="metric-value" id="m-offer-rate">—</div><div class="metric-sub">offers vs hired</div></div>
-        <div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value" id="m-shortlisted">0</div><div class="metric-sub">past screening</div></div>
-      </div>
+      <!-- ── LEVEL 1: ROLES DASHBOARD ── -->
+      <div id="view-roles">
 
-      <div class="pipeline-scroll">
-        <div class="pipeline-row">
-          <div class="stage-col"><div class="stage-header" style="background:#E6F1FB;color:#185FA5">Applied</div><div class="stage-count" id="sc-Applied" style="color:#185FA5">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#FAEEDA;color:#854F0B">Screening</div><div class="stage-count" id="sc-Screening" style="color:#854F0B">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#E1F5EE;color:#0F6E56">Shortlisted</div><div class="stage-count" id="sc-Shortlisted" style="color:#0F6E56">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#EEEDFE;color:#534AB7">Interview R1</div><div class="stage-count" id="sc-Interview-R1" style="color:#534AB7">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#AFA9EC;color:#26215C">Interview R2</div><div class="stage-count" id="sc-Interview-R2" style="color:#26215C">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#7F77DD;color:#fff">Interview R3</div><div class="stage-count" id="sc-Interview-R3" style="color:#7F77DD">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#FBEAF0;color:#993556">BG Check</div><div class="stage-count" id="sc-BG-Check" style="color:#993556">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#EAF3DE;color:#3B6D11">Offer</div><div class="stage-count" id="sc-Offer" style="color:#3B6D11">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#9FE1CB;color:#04342C">Joining</div><div class="stage-count" id="sc-Joining" style="color:#04342C">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#C0DD97;color:#085041">Hired</div><div class="stage-count" id="sc-Hired" style="color:#085041">0</div></div>
-          <div class="stage-col"><div class="stage-header" style="background:#FCEBEB;color:#8B1A1A">Rejected</div><div class="stage-count" id="sc-Rejected" style="color:#8B1A1A">0</div></div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:14px">
-        <div class="section-label" style="margin-bottom:12px"><i class="ti ti-user-plus" style="font-size:13px"></i>Add candidate</div>
-        <div class="controls-row">
-          <div class="ctrl-group"><div class="ctrl-label">Name</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-name" placeholder="Full name"></div>
-          <div class="ctrl-group" style="max-width:70px"><div class="ctrl-label">Score</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-score" placeholder="85"></div>
-          <div class="ctrl-group" style="max-width:140px"><div class="ctrl-label">Stage</div>
-            <select class="input-field" style="padding:8px 10px;font-size:13px" id="p-stage">
-              <option>Applied</option><option>Screening</option><option>Shortlisted</option>
-              <option>Interview R1</option><option>Interview R2</option><option>Interview R3</option>
-              <option>BG Check</option><option>Offer</option><option>Joining</option><option>Hired</option>
+        <!-- Top bar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <select class="input-field" id="filterFunction" onchange="filterRoles()" style="padding:7px 10px;font-size:12px;width:auto;min-width:140px">
+              <option value="">Function</option>
+              <option>Finance</option><option>HR</option><option>IT</option>
+              <option>Legal</option><option>Marketing</option><option>Operations</option>
+              <option>Sales</option><option>Supply Chain</option>
+            </select>
+            <select class="input-field" id="filterStatus" onchange="filterRoles()" style="padding:7px 10px;font-size:12px;width:auto;min-width:130px">
+              <option value="">All statuses</option>
+              <option>Active</option><option>On Hold</option><option>Closed</option>
             </select>
           </div>
-          <div class="ctrl-group"><div class="ctrl-label">Notes</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-notes" placeholder="Recruiter notes"></div>
-          <button class="add-cand-btn" onclick="addCandidate()"><i class="ti ti-plus" style="font-size:14px"></i>Add</button>
-        </div>
-      </div>
-
-      <div class="section-toggle" onclick="toggleList()">
-        <div class="stog-label">
-          <i class="ti ti-users" style="font-size:14px"></i>
-          Candidate list
-          <span style="font-size:11px;background:#0F6E56;color:#fff;padding:2px 9px;border-radius:20px" id="listPill">0</span>
-        </div>
-        <div class="stog-right">
-          <button class="btn-secondary" onclick="event.stopPropagation();exportCSV()" style="padding:4px 10px;font-size:11px">
-            <i class="ti ti-download" style="font-size:12px"></i>Export CSV
+          <button class="btn-primary" onclick="showAddRoleForm()" style="padding:8px 16px;font-size:13px">
+            <i class="ti ti-plus" style="font-size:14px"></i>Add role
           </button>
-          <span id="listLabel">Show</span>
-          <i class="ti ti-chevron-down chevron" id="listChevron"></i>
         </div>
-      </div>
 
-      <div class="table-section collapsed" id="tableSection" style="max-height:700px">
-        <div class="table-wrap">
-          <table>
+        <!-- Add role form (hidden by default) -->
+        <div id="addRoleForm" style="display:none;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;color:#0F6E56;margin-bottom:12px"><i class="ti ti-plus" style="font-size:13px;vertical-align:-1px;margin-right:5px"></i>New role</div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div><div class="ctrl-label">Job title</div><input type="text" class="input-field" id="newRoleTitle" placeholder="e.g. Sales Manager" style="padding:8px 10px;font-size:13px"></div>
+            <div><div class="ctrl-label">Function</div>
+              <select class="input-field" id="newRoleFunction" style="padding:8px 10px;font-size:13px">
+                <option value="">— Select —</option>
+                <option>Finance</option><option>HR</option><option>IT</option>
+                <option>Legal</option><option>Marketing</option><option>Operations</option>
+                <option>Sales</option><option>Supply Chain</option>
+              </select>
+            </div>
+            <div><div class="ctrl-label">Status</div>
+              <select class="input-field" id="newRoleStatus" style="padding:8px 10px;font-size:13px">
+                <option>Active</option><option>On Hold</option><option>Closed</option>
+              </select>
+            </div>
+            <div><div class="ctrl-label">Headcount</div><input type="text" class="input-field" id="newRoleHC" placeholder="1" style="padding:8px 10px;font-size:13px"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-primary" onclick="addRole()" style="padding:8px 16px;font-size:12px"><i class="ti ti-check" style="font-size:13px"></i>Save role</button>
+            <button onclick="hideAddRoleForm()" style="padding:8px 16px;font-size:12px;background:none;border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius-md);cursor:pointer;font-family:var(--font-sans);color:var(--color-text-secondary)">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Roles summary metrics -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="roleMetrics">
+          <div style="background:var(--color-background-secondary);border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;border:1.5px solid transparent;transition:border-color 0.15s,background 0.15s" id="mc-all" onclick="setMetricFilter('all')" onmouseover="this.style.background='#EAF3DE'" onmouseout="if(currentMetricFilter!=='all')this.style.background='var(--color-background-secondary)'">
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Total Roles</div>
+            <div style="font-size:20px;font-weight:500;color:var(--color-text-primary)" id="rm-total">0</div>
+            <div style="font-size:10px;color:#3B6D11;margin-top:2px">in system</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;border:1.5px solid transparent;transition:border-color 0.15s,background 0.15s" id="mc-active" onclick="setMetricFilter('active')" onmouseover="this.style.background='#EAF3DE'" onmouseout="if(currentMetricFilter!=='active')this.style.background='var(--color-background-secondary)'">
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Active</div>
+            <div style="font-size:20px;font-weight:500;color:#1D9E75" id="rm-active">0</div>
+            <div style="font-size:10px;color:#3B6D11;margin-top:2px">open roles</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;border:1.5px solid transparent;transition:border-color 0.15s,background 0.15s" id="mc-offer" onclick="setMetricFilter('offer')" onmouseover="this.style.background='#EAF3DE'" onmouseout="if(currentMetricFilter!=='offer')this.style.background='var(--color-background-secondary)'">
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Offer Stage</div>
+            <div style="font-size:20px;font-weight:500;color:#3B6D11" id="rm-offer">0</div>
+            <div style="font-size:10px;color:#3B6D11;margin-top:2px">pending offers</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;border:1.5px solid transparent;transition:border-color 0.15s,background 0.15s" id="mc-filled" onclick="setMetricFilter('filled')" onmouseover="this.style.background='#EAF3DE'" onmouseout="if(currentMetricFilter!=='filled')this.style.background='var(--color-background-secondary)'">
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Filled</div>
+            <div style="font-size:20px;font-weight:500;color:#085041" id="rm-filled">0</div>
+            <div style="font-size:10px;color:#3B6D11;margin-top:2px">roles closed</div>
+          </div>
+        </div>
+
+        <!-- Filter banner -->
+        <div id="metricFilterBanner" style="display:none;align-items:center;gap:8px;padding:7px 12px;background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:var(--radius-md);font-size:12px;color:#085041;margin-bottom:12px">
+          <i class="ti ti-filter" style="font-size:13px;flex-shrink:0"></i>
+          <span id="metricFilterText"></span>
+          <button onclick="setMetricFilter('all')" style="margin-left:auto;display:flex;align-items:center;gap:3px;font-size:11px;background:none;border:0.5px solid #3B6D11;border-radius:20px;padding:2px 9px;color:#085041;cursor:pointer;font-family:'DM Sans',sans-serif">
+            <i class="ti ti-x" style="font-size:10px"></i>Clear
+          </button>
+        </div>
+
+        <!-- Roles table --><!-- Roles table -->
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:700px">
             <thead>
               <tr>
-                <th>Rank</th><th>Candidate</th><th>Score</th><th>Stage</th>
-                <th>Stage</th><th>Days</th><th>Date</th><th>Notes</th><th></th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:left;border-bottom:0.5px solid #C0DD97;font-size:11px">Job Title</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:left;border-bottom:0.5px solid #C0DD97;font-size:11px">Function</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:left;border-bottom:0.5px solid #C0DD97;font-size:11px">Status</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Total</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Shortlisted</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Interview R1</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Interview R2</th>
+                <th style="background:#EAF3DE;color:#E24B4A;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Rejected</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Hired</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:center;border-bottom:0.5px solid #C0DD97;font-size:11px">Filled</th>
+                <th style="background:#EAF3DE;color:#085041;font-weight:600;padding:9px 12px;text-align:left;border-bottom:0.5px solid #C0DD97;font-size:11px"></th>
               </tr>
             </thead>
-            <tbody id="pipelineBody"></tbody>
+            <tbody id="rolesTableBody"></tbody>
           </table>
         </div>
       </div>
-    </div>
+
+      <!-- ── LEVEL 2: INDIVIDUAL ROLE PIPELINE ── -->
+      <div id="view-pipeline" style="display:none">
+
+        <!-- Back button + role header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <button onclick="backToRoles()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:none;border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius-md);font-size:12px;font-weight:500;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">
+            <i class="ti ti-arrow-left" style="font-size:13px"></i>All roles
+          </button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div id="activeRoleName" style="font-size:15px;font-weight:600;color:#0F6E56"></div>
+            <span id="activeRoleFunction" style="font-size:11px;padding:3px 10px;border-radius:20px;background:#EAF3DE;color:#085041"></span>
+            <span id="activeRoleStatus" style="font-size:11px;padding:3px 10px;border-radius:20px"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn-secondary" onclick="exportRoleCSV()" style="font-size:11px">
+              <i class="ti ti-download" style="font-size:12px"></i>Export CSV
+            </button>
+            <div class="topnav-btn" id="privacyToggle" onclick="togglePrivacy()" style="background:var(--color-background-secondary);color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary)">
+              <i class="ti ti-eye-off" style="font-size:12px" id="privacyIcon"></i>
+              <span id="privacyLabel">Privacy on</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+          <div class="metric-card"><div class="metric-label">Total candidates</div><div class="metric-value" id="m-total">0</div><div class="metric-sub">in pipeline</div></div>
+          <div class="metric-card"><div class="metric-label">Hired</div><div class="metric-value" id="m-hired">0</div><div class="metric-sub" id="m-hired-rate">0% conversion</div></div>
+          <div class="metric-card"><div class="metric-label">Offer acceptance</div><div class="metric-value" id="m-offer-rate">—</div><div class="metric-sub">offers vs hired</div></div>
+          <div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value" id="m-shortlisted">0</div><div class="metric-sub">past screening</div></div>
+        </div>
+
+        <!-- Stage counters -->
+        <div style="overflow-x:auto;margin-bottom:14px">
+          <div style="display:grid;grid-template-columns:repeat(11,1fr);gap:4px;min-width:700px">
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#E6F1FB;color:#185FA5;min-height:26px;display:flex;align-items:center;justify-content:center">Applied</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#185FA5" id="sc-Applied">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#FAEEDA;color:#854F0B;min-height:26px;display:flex;align-items:center;justify-content:center">Screening</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#854F0B" id="sc-Screening">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#E1F5EE;color:#0F6E56;min-height:26px;display:flex;align-items:center;justify-content:center">Shortlisted</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#0F6E56" id="sc-Shortlisted">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#EEEDFE;color:#534AB7;min-height:26px;display:flex;align-items:center;justify-content:center">Interview R1</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#534AB7" id="sc-Interview R1">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#AFA9EC;color:#26215C;min-height:26px;display:flex;align-items:center;justify-content:center">Interview R2</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#26215C" id="sc-Interview R2">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#7F77DD;color:#fff;min-height:26px;display:flex;align-items:center;justify-content:center">Interview R3</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#7F77DD" id="sc-Interview R3">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#FBEAF0;color:#993556;min-height:26px;display:flex;align-items:center;justify-content:center">BG Check</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#993556" id="sc-BG Check">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#EAF3DE;color:#3B6D11;min-height:26px;display:flex;align-items:center;justify-content:center">Offer</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#3B6D11" id="sc-Offer">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#9FE1CB;color:#04342C;min-height:26px;display:flex;align-items:center;justify-content:center">Joining</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#04342C" id="sc-Joining">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#C0DD97;color:#085041;min-height:26px;display:flex;align-items:center;justify-content:center">Hired</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#085041" id="sc-Hired">0</div></div>
+            <div style="border-radius:6px;overflow:hidden"><div style="padding:5px 3px;text-align:center;font-size:9px;font-weight:600;background:#FCEBEB;color:#8B1A1A;min-height:26px;display:flex;align-items:center;justify-content:center">Rejected</div><div style="font-size:15px;font-weight:600;text-align:center;padding:3px 0 6px;color:#8B1A1A" id="sc-Rejected">0</div></div>
+          </div>
+        </div>
+
+        <!-- Add candidate -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="section-label" style="margin-bottom:10px"><i class="ti ti-user-plus" style="font-size:13px"></i>Add candidate</div>
+          <div class="controls-row">
+            <div class="ctrl-group"><div class="ctrl-label">Name</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-name" placeholder="Full name"></div>
+            <div class="ctrl-group" style="max-width:65px"><div class="ctrl-label">Score</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-score" placeholder="85"></div>
+            <div class="ctrl-group" style="max-width:140px"><div class="ctrl-label">Stage</div>
+              <select class="input-field" style="padding:8px 10px;font-size:13px" id="p-stage">
+                <option>Applied</option><option>Screening</option><option>Shortlisted</option>
+                <option>Interview R1</option><option>Interview R2</option><option>Interview R3</option>
+                <option>BG Check</option><option>Offer</option><option>Joining</option><option>Hired</option>
+              </select>
+            </div>
+            <div class="ctrl-group"><div class="ctrl-label">Notes</div><input type="text" class="input-field" style="padding:8px 10px;font-size:13px" id="p-notes" placeholder="Recruiter notes"></div>
+            <button class="add-cand-btn" onclick="addCandidate()"><i class="ti ti-plus" style="font-size:14px"></i>Add</button>
+          </div>
+        </div>
+
+        <!-- Candidate list -->
+        <div class="section-toggle" onclick="toggleList()">
+          <div class="stog-label">
+            <i class="ti ti-users" style="font-size:14px"></i>
+            Candidate list
+            <span style="font-size:11px;background:#0F6E56;color:#fff;padding:2px 9px;border-radius:20px" id="listPill">0</span>
+          </div>
+          <div class="stog-right">
+            <span id="listLabel">Show</span>
+            <i class="ti ti-chevron-down chevron" id="listChevron"></i>
+          </div>
+        </div>
+
+        <div class="table-section collapsed" id="tableSection" style="max-height:600px">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th><th>Candidate</th><th>Score</th><th>Stage</th>
+                  <th>Days</th><th>Date</th><th>Notes</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="pipelineBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Rejected section -->
+        <div id="rejectedSection" style="display:none;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:10px;cursor:pointer;user-select:none" onclick="toggleRejected()">
+            <div style="font-size:13px;font-weight:600;color:#8B1A1A;display:flex;align-items:center;gap:8px">
+              <i class="ti ti-ban" style="font-size:14px"></i>Rejected candidates
+              <span id="rejectedCountPill" style="font-size:11px;background:#E24B4A;color:#fff;padding:2px 9px;border-radius:20px">0</span>
+            </div>
+            <div style="font-size:11px;color:#8B1A1A;display:flex;align-items:center;gap:6px;font-weight:500">
+              <span id="rejectedLabel">Show</span>
+              <i class="ti ti-chevron-down" id="rejectedChevron" style="font-size:13px;transition:transform 0.25s"></i>
+            </div>
+          </div>
+          <div id="rejectedTableWrap" style="overflow:hidden;max-height:0;transition:max-height 0.3s ease">
+            <div style="overflow-x:auto;margin-top:8px">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+                <thead>
+                  <tr>
+                    <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Candidate</th>
+                    <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Status</th>
+                    <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Reason</th>
+                    <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Rejected on</th>
+                    <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rejectedBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end view-pipeline -->
+
+    </div><!-- end panel-pipeline -->
 
   </main>
+
+
 
   
       <!-- REJECTED SECTION -->
