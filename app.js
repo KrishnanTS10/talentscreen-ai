@@ -62,8 +62,8 @@ function cleanText(text, maxChars) {
 
 // Dynamic max_tokens: scale with content
 function calcMaxTokens(numCandidates) {
-  // ~120 tokens per candidate output + 200 buffer
-  return Math.min(200 + (numCandidates * 120), 1500);
+  // ~180 tokens per candidate output + 300 buffer
+  return Math.min(300 + (numCandidates * 180), 3000);
 }
 
 function calcQMaxTokens(numQuestions) {
@@ -209,13 +209,13 @@ async function screenAll() {
   resultEl.innerHTML = '<div class="alert alert-info"><div class="spinner-dark"></div>&nbsp;Analysing ' + readyCVs.length + ' candidate(s) — this may take a moment…</div>';
 
   const cvSections = readyCVs.map((c, i) =>
-    `--- CANDIDATE ${i + 1}: ${c.name.replace(/\.[^.]+$/, '')} ---\n${cleanText(c.text, 1200)}`
+    `--- CANDIDATE ${i + 1}: ${c.name.replace(/\.[^.]+$/, '')} ---\n${cleanText(c.text, 800)}`
   ).join('\n\n');
 
   const dynamicTokens = calcMaxTokens(readyCVs.length);
   const prompt = `Rank ${readyCVs.length} candidates against this JD. Return JSON only:
 {"candidates":[{"name":"","score":0-100,"verdict":"Strong/Good/Partial/Weak Match","sub_scores":{"skills_match":0-30,"experience_level":0-25,"industry_fit":0-20,"location_fit":0-15,"qualifications":0-10},"matched_skills":[],"missing_skills":[],"summary":"2 sentences"}]}
-JD: ${cleanText(jd, 1500)}
+JD: ${cleanText(jd, 1200)}
 CVS: ${cvSections}`;
 
   try {
@@ -508,9 +508,88 @@ function exportPDFReport() {
 let selQty = 10;
 const activeTypes = new Set(['behavioural', 'situational', 'technical']);
 
+// ── Function → Role mapping ──
+const FUNCTION_ROLES = {
+  'Finance': [
+    'Financial Analyst', 'Senior Financial Analyst', 'Finance Manager',
+    'Finance Business Partner', 'FP&A Manager', 'Head of Finance',
+    'CFO', 'Treasury Manager', 'Tax Manager', 'Audit Manager',
+    'Controller', 'Cost Accountant'
+  ],
+  'HR': [
+    'Recruiter', 'Senior Recruiter', 'TA Manager', 'Head of Talent Acquisition',
+    'HR Business Partner', 'Senior HRBP', 'Manager HRBP', 'Head of HRBP',
+    'HR Manager', 'HR Director', 'Chief People Officer', 'CHRO',
+    'L&D Manager', 'C&B Manager', 'ER Manager', 'DEI Lead',
+    'HR Analyst', 'OD Manager', 'Payroll Manager'
+  ],
+  'IT': [
+    'Software Engineer', 'Senior Software Engineer', 'Tech Lead',
+    'Product Manager', 'Scrum Master', 'DevOps Engineer',
+    'Data Analyst', 'Data Scientist', 'IT Manager', 'IT Director',
+    'CTO', 'Cloud Architect', 'Cybersecurity Analyst', 'QA Engineer',
+    'Systems Administrator', 'UX Designer'
+  ],
+  'Legal': [
+    'Legal Counsel', 'Senior Legal Counsel', 'Compliance Officer',
+    'Compliance Manager', 'Contract Manager', 'Legal Manager',
+    'General Counsel', 'Risk Manager', 'Data Privacy Officer',
+    'Company Secretary', 'Paralegal'
+  ],
+  'Marketing': [
+    'Marketing Executive', 'Marketing Manager', 'Brand Manager',
+    'Digital Marketing Manager', 'SEO Specialist', 'Content Manager',
+    'Social Media Manager', 'Head of Marketing', 'CMO',
+    'CRM Manager', 'Growth Manager', 'PR Manager',
+    'Campaign Manager', 'Market Research Analyst'
+  ],
+  'Operations': [
+    'Operations Analyst', 'Operations Manager', 'Process Improvement Manager',
+    'Business Analyst', 'Project Manager', 'Program Manager',
+    'Head of Operations', 'COO', 'Facilities Manager',
+    'Customer Service Manager', 'Quality Manager', 'HSE Manager'
+  ],
+  'Sales': [
+    'Sales Executive', 'Senior Sales Executive', 'Account Manager',
+    'Key Account Manager', 'Sales Manager', 'Regional Sales Manager',
+    'Business Development Manager', 'Head of Sales', 'VP Sales',
+    'Sales Director', 'CSO', 'Pre-Sales Consultant',
+    'Channel Sales Manager', 'Inside Sales Manager'
+  ],
+  'Supply Chain': [
+    'Supply Chain Analyst', 'Supply Chain Manager', 'Procurement Officer',
+    'Procurement Manager', 'Logistics Manager', 'Warehouse Manager',
+    'Demand Planning Manager', 'Inventory Manager', 'Head of Supply Chain',
+    'Chief Supply Chain Officer', 'Category Manager', 'Vendor Manager',
+    'Import/Export Manager', 'Fleet Manager'
+  ]
+};
+
+function onFunctionChange() {
+  const fn = document.getElementById('functionSelect').value;
+  const roleSelect = document.getElementById('roleSelect');
+  const customFnGroup = document.getElementById('customFunctionGroup');
+  const customRoleGroup = document.getElementById('customRoleGroup');
+
+  // Show/hide custom function input
+  customFnGroup.style.display = fn === 'custom' ? 'flex' : 'none';
+  customRoleGroup.style.display = 'none';
+
+  if (!fn || fn === 'custom') {
+    roleSelect.innerHTML = '<option value="">— Select function first —</option><option value="custom">Other (type below)</option>';
+    if (fn === 'custom') customRoleGroup.style.display = 'flex';
+    return;
+  }
+
+  const roles = FUNCTION_ROLES[fn] || [];
+  roleSelect.innerHTML = `<option value="">— Select a role —</option>
+    ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+    <option value="custom">Other (type below)</option>`;
+}
+
 function onRoleChange() {
-  document.getElementById('customRoleGroup').style.display =
-    document.getElementById('roleSelect').value === 'custom' ? 'flex' : 'none';
+  const rv = document.getElementById('roleSelect').value;
+  document.getElementById('customRoleGroup').style.display = rv === 'custom' ? 'flex' : 'none';
 }
 
 function toggleType(t) {
@@ -533,16 +612,21 @@ function setQty(n) {
 }
 
 async function generateQs() {
+  const fn = document.getElementById('functionSelect').value;
   const rv = document.getElementById('roleSelect').value;
   const cr = document.getElementById('customRole').value.trim();
+  const cfn = document.getElementById('customFunction')?.value.trim();
   const errEl = document.getElementById('s2err');
   const btn = document.getElementById('genBtn');
   const resultEl = document.getElementById('qResult');
 
+  if (!fn) { errEl.innerHTML = '<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>Please select a function first.</div>'; return; }
   if (!rv) { errEl.innerHTML = '<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>Please select a role.</div>'; return; }
   if (rv === 'custom' && !cr) { errEl.innerHTML = '<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>Please type the role name.</div>'; return; }
+  if (fn === 'custom' && !cfn) { errEl.innerHTML = '<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>Please type the function name.</div>'; return; }
   errEl.innerHTML = '';
 
+  const functionName = fn === 'custom' ? cfn : fn;
   const role = rv === 'custom' ? cr : rv;
   const jd = document.getElementById('q2jd').value.trim();
   const seniority = document.getElementById('senioritySelect').value;
@@ -554,7 +638,7 @@ async function generateQs() {
   resultEl.innerHTML = '<div class="alert alert-info"><div class="spinner-dark"></div>&nbsp;Generating ' + selQty + ' questions…</div>';
 
   const qTokens = calcQMaxTokens(selQty);
-  const prompt = `Generate ${selQty} HR interview questions. Role: ${role}, Level: ${seniority}, Types: ${types}.
+  const prompt = `Generate ${selQty} interview questions for ${functionName} function. Role: ${role}, Level: ${seniority}, Types: ${types}.
 ${jd ? `JD: ${cleanText(jd, 1000)}` : ''}
 JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to_listen_for":""}]}`;
 
@@ -562,7 +646,7 @@ JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to
     const raw = await callClaude(prompt, qTokens);
     const clean = raw.replace(/```json|```/g, '').trim();
     const data = JSON.parse(clean);
-    renderQuestions(data.questions || [], role, seniority);
+    renderQuestions(data.questions || [], role, seniority, functionName);
   } catch (e) {
     resultEl.innerHTML = `<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>${e.message}</div>`;
   }
@@ -570,7 +654,7 @@ JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to
   btn.disabled = false;
 }
 
-function renderQuestions(questions, role, seniority) {
+function renderQuestions(questions, role, seniority, functionName) {
   const resultEl = document.getElementById('qResult');
   resultEl.style.display = 'block';
   const typeColor = t => t === 'Behavioural' ? '#EAF3DE;color:#085041' : t === 'Situational' ? '#E6F1FB;color:#185FA5' : '#EEEDFE;color:#534AB7';
@@ -579,7 +663,7 @@ function renderQuestions(questions, role, seniority) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid #E2EDE8">
       <div style="font-size:13px;font-weight:600;color:#0F6E56">
         <i class="ti ti-list-check" style="font-size:14px;vertical-align:-2px;margin-right:6px"></i>
-        ${questions.length} Questions — ${role} | ${seniority}
+        ${questions.length} Questions — ${functionName || ''} | ${role} | ${seniority}
       </div>
       <button onclick="copyQuestions()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;background:#fff;border:0.5px solid #C0DD97;border-radius:8px;font-size:11px;color:#0F6E56;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500">
         <i class="ti ti-copy" style="font-size:13px"></i>Copy all
