@@ -48,7 +48,30 @@ async function extractFile(f) {
 }
 
 // ── CLAUDE API ──
-async function callClaude(prompt) {
+
+// ── TOKEN OPTIMISATION: Clean extracted text before sending to API ──
+function cleanText(text, maxChars) {
+  return text
+    .replace(/\s{3,}/g, ' ')          // collapse 3+ spaces
+    .replace(/\n{3,}/g, '\n\n')       // collapse 3+ newlines
+    .replace(/[^\x20-\x7E\n]/g, ' ') // strip non-printable chars
+    .replace(/\t/g, ' ')               // tabs to spaces
+    .trim()
+    .substring(0, maxChars);
+}
+
+// Dynamic max_tokens: scale with content
+function calcMaxTokens(numCandidates) {
+  // ~120 tokens per candidate output + 200 buffer
+  return Math.min(200 + (numCandidates * 120), 1500);
+}
+
+function calcQMaxTokens(numQuestions) {
+  // ~80 tokens per question + 100 buffer
+  return Math.min(100 + (numQuestions * 80), 1800);
+}
+
+async function callClaude(prompt, maxTokens = 1000) {
   const apiKey = localStorage.getItem('ts_api_key');
   if (!apiKey) throw new Error('No API key found. Please add your Anthropic API key via the setup link on the login page.');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -61,7 +84,7 @@ async function callClaude(prompt) {
     },
     body: JSON.stringify({
       model: 'claude-opus-4-5',
-      max_tokens: 2000,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -186,44 +209,17 @@ async function screenAll() {
   resultEl.innerHTML = '<div class="alert alert-info"><div class="spinner-dark"></div>&nbsp;Analysing ' + readyCVs.length + ' candidate(s) — this may take a moment…</div>';
 
   const cvSections = readyCVs.map((c, i) =>
-    `--- CANDIDATE ${i + 1}: ${c.name.replace(/\.[^.]+$/, '')} ---\n${c.text.substring(0, 2500)}`
+    `--- CANDIDATE ${i + 1}: ${c.name.replace(/\.[^.]+$/, '')} ---\n${cleanText(c.text, 1200)}`
   ).join('\n\n');
 
-  const prompt = `You are an expert recruiter specialising in volume hiring. Screen these ${readyCVs.length} candidate CV(s) against the job description.
-
-For each candidate provide a score (0-100), verdict, sub-scores, matched skills, missing skills, and summary.
-
-Return ONLY valid JSON (no markdown):
-{
-  "candidates": [
-    {
-      "name": "candidate name",
-      "score": 85,
-      "verdict": "Strong Match",
-      "sub_scores": {
-        "skills_match": 28,
-        "experience_level": 22,
-        "industry_fit": 18,
-        "location_fit": 12,
-        "qualifications": 8
-      },
-      "matched_skills": ["skill1", "skill2"],
-      "missing_skills": ["skill1"],
-      "summary": "2-sentence summary"
-    }
-  ]
-}
-
-Sub-score maximums: skills_match/30, experience_level/25, industry_fit/20, location_fit/15, qualifications/10.
-
-JOB DESCRIPTION:
-${jd.substring(0, 2500)}
-
-CANDIDATE CVS:
-${cvSections}`;
+  const dynamicTokens = calcMaxTokens(readyCVs.length);
+  const prompt = `Rank ${readyCVs.length} candidates against this JD. Return JSON only:
+{"candidates":[{"name":"","score":0-100,"verdict":"Strong/Good/Partial/Weak Match","sub_scores":{"skills_match":0-30,"experience_level":0-25,"industry_fit":0-20,"location_fit":0-15,"qualifications":0-10},"matched_skills":[],"missing_skills":[],"summary":"2 sentences"}]}
+JD: ${cleanText(jd, 1500)}
+CVS: ${cvSections}`;
 
   try {
-    const raw = await callClaude(prompt);
+    const raw = await callClaude(prompt, dynamicTokens);
     const clean = raw.replace(/```json|```/g, '').trim();
     const data = JSON.parse(clean);
     lastScreenResults = data.candidates || [];
@@ -557,14 +553,13 @@ async function generateQs() {
   resultEl.style.display = 'block';
   resultEl.innerHTML = '<div class="alert alert-info"><div class="spinner-dark"></div>&nbsp;Generating ' + selQty + ' questions…</div>';
 
-  const prompt = `You are an expert HR interviewer. Generate ${selQty} interview questions for a ${role} role at ${seniority} level.
-Question types: ${types}.
-${jd ? `Job Description:\n${jd.substring(0, 2000)}\n` : 'Use general HR role knowledge.'}
-Return ONLY valid JSON (no markdown):
-{"questions":[{"number":1,"type":"Behavioural","question":"full question","what_to_listen_for":"guidance"}]}`;
+  const qTokens = calcQMaxTokens(selQty);
+  const prompt = `Generate ${selQty} HR interview questions. Role: ${role}, Level: ${seniority}, Types: ${types}.
+${jd ? `JD: ${cleanText(jd, 1000)}` : ''}
+JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to_listen_for":""}]}`;
 
   try {
-    const raw = await callClaude(prompt);
+    const raw = await callClaude(prompt, qTokens);
     const clean = raw.replace(/```json|```/g, '').trim();
     const data = JSON.parse(clean);
     renderQuestions(data.questions || [], role, seniority);
@@ -619,7 +614,8 @@ function copyQuestions() {
 // ══════════════════════════════════════════
 // TOOL 3: PIPELINE
 // ══════════════════════════════════════════
-const PIPELINE_STAGES = ['Applied', 'Screening', 'Shortlisted', 'Interview R1', 'Interview R2', 'Interview R3', 'BG Check', 'Offer', 'Joining', 'Hired'];
+const PIPELINE_STAGES = ['Applied', 'Screening', 'Shortlisted', 'Interview R1', 'Interview R2', 'Interview R3', 'BG Check', 'Offer', 'Joining', 'Hired', 'Rejected'];
+const REJECTION_REASONS = ['Overqualified', 'Underqualified', 'Salary Mismatch', 'Culture Fit', 'Better Candidate Selected', 'Role Cancelled', 'Candidate Withdrew', 'Failed Assessment', 'Failed Background Check', 'Other'];
 let privacyOn = true;
 let listVisible = false;
 const pCandidates = [];
@@ -649,7 +645,8 @@ function stageColor(s) {
     'Shortlisted':'background:#E1F5EE;color:#0F6E56','Interview R1':'background:#EEEDFE;color:#534AB7',
     'Interview R2':'background:#AFA9EC;color:#26215C','Interview R3':'background:#7F77DD;color:#fff',
     'BG Check':'background:#FBEAF0;color:#993556','Offer':'background:#EAF3DE;color:#3B6D11',
-    'Joining':'background:#9FE1CB;color:#04342C','Hired':'background:#C0DD97;color:#085041'
+    'Joining':'background:#9FE1CB;color:#04342C','Hired':'background:#C0DD97;color:#085041',
+    'Rejected':'background:#FCEBEB;color:#8B1A1A'
   };
   return m[s] || '';
 }
@@ -705,23 +702,101 @@ function removePCandidate(id) {
 
 function updatePStage(id, s) {
   const c = pCandidates.find(c => c.id === id);
-  if (c) { c.stage = s; c.stageDate = todayStr(); renderPipeline(); }
+  if (!c) return;
+  if (s === 'Rejected') {
+    showRejectModal(id);
+    // Reset dropdown to current stage visually
+    const sel = document.querySelector(`select[onchange="updatePStage(${id},this.value)"]`);
+    if (sel) sel.value = c.stage;
+    return;
+  }
+  c.stage = s;
+  c.stageDate = todayStr();
+  c.rejectionReason = '';
+  renderPipeline();
+}
+
+function showRejectModal(id) {
+  const c = pCandidates.find(c => c.id === id);
+  if (!c) return;
+  const existing = document.getElementById('rejectModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'rejectModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:36px;height:36px;border-radius:50%;background:#FCEBEB;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-user-x" style="font-size:18px;color:#E24B4A"></i>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#1A2E25">Reject candidate</div>
+          <div style="font-size:12px;color:#5A7A6A">${c.name}</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#5A7A6A;margin:12px 0 16px;line-height:1.5">This will move the candidate to the Rejected section. Please select a reason.</p>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;color:#8B1A1A;display:block;margin-bottom:6px;letter-spacing:0.3px">REASON FOR REJECTION</label>
+        <select id="rejectReasonSelect" style="width:100%;padding:10px 12px;font-size:13px;font-family:'DM Sans',sans-serif;border:1.5px solid #F09595;border-radius:10px;color:#1A2E25;background:#fff;cursor:pointer;outline:none">
+          <option value="">— Select a reason —</option>
+          ${REJECTION_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('rejectModal').remove()" style="flex:1;padding:10px;background:#F7FAF8;border:0.5px solid #E2EDE8;border-radius:10px;font-size:13px;font-weight:500;color:#5A7A6A;cursor:pointer;font-family:'DM Sans',sans-serif">Cancel</button>
+        <button onclick="confirmReject(${id})" style="flex:1;padding:10px;background:#E24B4A;border:none;border-radius:10px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">Confirm Rejection</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function confirmReject(id) {
+  const reason = document.getElementById('rejectReasonSelect').value;
+  if (!reason) { alert('Please select a rejection reason.'); return; }
+  const c = pCandidates.find(c => c.id === id);
+  if (c) {
+    c.stage = 'Rejected';
+    c.stageDate = todayStr();
+    c.rejectionReason = reason;
+  }
+  document.getElementById('rejectModal').remove();
+  renderPipeline();
+}
+
+function restoreCandidate(id) {
+  const c = pCandidates.find(c => c.id === id);
+  if (c) {
+    c.stage = 'Applied';
+    c.stageDate = todayStr();
+    c.rejectionReason = '';
+  }
+  renderPipeline();
 }
 
 function renderPipeline() {
   const tbody = document.getElementById('pipelineBody');
+  const rejectedBody = document.getElementById('rejectedBody');
+  const rejectedSection = document.getElementById('rejectedSection');
   if (!tbody) return;
 
-  if (!pCandidates.length) {
+  const active = pCandidates.filter(c => c.stage !== 'Rejected');
+  const rejected = pCandidates.filter(c => c.stage === 'Rejected');
+
+  // ── Active candidates ──
+  if (!active.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#5A7A6A;font-size:13px"><i class="ti ti-inbox" style="font-size:18px;vertical-align:-4px;margin-right:8px"></i>No candidates yet — add one above or import from CV Screener</td></tr>';
   } else {
-    tbody.innerHTML = pCandidates.map((c, i) => {
+    tbody.innerHTML = active.map((c, i) => {
       const dn = privacyOn
         ? `<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">${initials(c.name)}</span><span style="font-family:'DM Mono',monospace;font-size:12px;color:#5A7A6A;letter-spacing:1px">${maskName(c.name)}</span>`
         : `<span style="width:24px;height:24px;border-radius:50%;background:#EAF3DE;color:#085041;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #C0DD97">${initials(c.name)}</span><span style="font-weight:500">${c.name}</span>`;
       const nt = privacyOn
         ? `<span style="font-size:11px;color:#5A7A6A;display:inline-flex;align-items:center;gap:3px"><i class="ti ti-lock" style="font-size:11px"></i>Hidden</span>`
         : `<span style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#5A7A6A;display:block" title="${c.notes}">${c.notes || '—'}</span>`;
+      const stagesForSelect = PIPELINE_STAGES.filter(s => s !== 'Rejected');
       return `<tr>
         <td>${rankBadge(i)}</td>
         <td style="white-space:nowrap">${dn}</td>
@@ -733,7 +808,8 @@ function renderPipeline() {
         </td>
         <td>
           <select style="font-size:10px;padding:3px 6px;border:0.5px solid #97C459;border-radius:20px;font-family:'DM Sans',sans-serif;cursor:pointer;${stageColor(c.stage)}" onchange="updatePStage(${c.id},this.value)">
-            ${PIPELINE_STAGES.map(s => `<option value="${s}" ${s === c.stage ? 'selected' : ''}>${s}</option>`).join('')}
+            ${stagesForSelect.map(s => `<option value="${s}" ${s === c.stage ? 'selected' : ''}>${s}</option>`).join('')}
+            <option value="Rejected" style="color:#E24B4A;font-weight:600">⊗ Reject</option>
           </select>
         </td>
         <td>${daysInStageBadge(c)}</td>
@@ -743,6 +819,32 @@ function renderPipeline() {
       </tr>`;
     }).join('');
   }
+
+  // ── Rejected section ──
+  if (rejectedSection) {
+    rejectedSection.style.display = rejected.length ? 'block' : 'none';
+  }
+  if (rejectedBody && rejected.length) {
+    rejectedBody.innerHTML = rejected.map(c => {
+      const dn = privacyOn
+        ? `<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">${initials(c.name)}</span><span style="font-family:'DM Mono',monospace;font-size:12px;color:#8B1A1A;letter-spacing:1px">${maskName(c.name)}</span>`
+        : `<span style="width:24px;height:24px;border-radius:50%;background:#FCEBEB;color:#8B1A1A;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;border:0.5px solid #F09595">${initials(c.name)}</span><span style="font-weight:500;color:#8B1A1A;text-decoration:line-through">${c.name}</span>`;
+      return `<tr style="background:#FFF8F8">
+        <td style="white-space:nowrap">${dn}</td>
+        <td><span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FCEBEB;color:#8B1A1A;white-space:nowrap"><i class="ti ti-ban" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Rejected</span></td>
+        <td><span style="font-size:11px;padding:2px 9px;border-radius:20px;background:#FEF3DC;color:#7A4A00">${c.rejectionReason || '—'}</span></td>
+        <td style="color:#5A7A6A;font-size:11px">${c.stageDate || c.date}</td>
+        <td>
+          <button onclick="restoreCandidate(${c.id})" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;background:#EAF3DE;color:#085041;border:0.5px solid #C0DD97;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500">
+            <i class="ti ti-rotate" style="font-size:12px"></i>Restore
+          </button>
+          <button onclick="removePCandidate(${c.id})" style="background:none;border:none;cursor:pointer;color:#F09595;font-size:14px;margin-left:4px" aria-label="Delete"><i class="ti ti-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('rejectedCountPill').textContent = rejected.length;
+  }
+
   updateMetrics();
 }
 
@@ -752,13 +854,14 @@ function updateMetrics() {
   const offers = pCandidates.filter(c => ['Offer', 'Joining', 'Hired'].includes(c.stage)).length;
   const shortlisted = pCandidates.filter(c => !['Applied', 'Screening'].includes(c.stage)).length;
   const stale = pCandidates.filter(c => c.stage.startsWith('Interview') && daysSince(c.stageDate || c.date) > 7).length;
+  const rejected = pCandidates.filter(c => c.stage === 'Rejected').length;
 
   document.getElementById('m-total').textContent = total;
   document.getElementById('m-hired').textContent = hired;
   document.getElementById('m-hired-rate').textContent = (total > 0 ? Math.round(hired / total * 100) : 0) + '% conversion';
   document.getElementById('m-offer-rate').textContent = offers > 0 ? Math.round(hired / offers * 100) + '%' : '—';
   document.getElementById('m-shortlisted').textContent = shortlisted;
-  document.getElementById('listPill').textContent = total;
+  document.getElementById('listPill').textContent = pCandidates.filter(c => c.stage !== 'Rejected').length;
   const staleEl = document.getElementById('m-stale');
   if (staleEl) { staleEl.textContent = stale; document.getElementById('m-stale-label').textContent = stale > 0 ? '⚠ need follow-up' : 'no action needed'; }
 
@@ -766,12 +869,14 @@ function updateMetrics() {
     const el = document.getElementById('sc-' + s.replace(/ /g, '-'));
     if (el) el.textContent = pCandidates.filter(c => c.stage === s).length;
   });
+  const rejEl = document.getElementById('sc-Rejected');
+  if (rejEl) rejEl.textContent = pCandidates.filter(c => c.stage === 'Rejected').length;
 }
 
 function exportCSV() {
   if (!pCandidates.length) { alert('No candidates to export yet.'); return; }
-  const headers = ['Rank', 'Candidate', 'Score', 'Stage', 'Days in Stage', 'Date Added', 'Notes'];
-  const rows = pCandidates.map((c, i) => [i + 1, c.name, c.score, c.stage, daysSince(c.stageDate || c.date), c.date, c.notes || ''].map(v => `"${v}"`).join(','));
+  const headers = ['Rank', 'Candidate', 'Score', 'Stage', 'Rejection Reason', 'Days in Stage', 'Date Added', 'Notes'];
+  const rows = pCandidates.map((c, i) => [i + 1, c.name, c.score, c.stage, c.rejectionReason || '', daysSince(c.stageDate || c.date), c.date, c.notes || ''].map(v => `"${v}"`).join(','));
   const csv = [headers.join(','), ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -781,3 +886,15 @@ function exportCSV() {
 }
 
 document.addEventListener('DOMContentLoaded', () => { renderPipeline(); });
+
+// ── Rejected section toggle ──
+let rejectedVisible = false;
+function toggleRejected() {
+  rejectedVisible = !rejectedVisible;
+  const wrap = document.getElementById('rejectedTableWrap');
+  const label = document.getElementById('rejectedLabel');
+  const chevron = document.getElementById('rejectedChevron');
+  wrap.style.maxHeight = rejectedVisible ? '600px' : '0';
+  label.textContent = rejectedVisible ? 'Hide' : 'Show';
+  chevron.style.transform = rejectedVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+}
