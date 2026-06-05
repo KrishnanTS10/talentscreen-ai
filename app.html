@@ -305,7 +305,7 @@
         Privacy mode is on — candidate names and notes are masked. Toggle off in the top bar to reveal.
       </div>
 
-      <div class="metrics-grid">
+      <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr)">
         <div class="metric-card"><div class="metric-label">Total candidates</div><div class="metric-value" id="m-total">0</div><div class="metric-sub">in pipeline</div></div>
         <div class="metric-card"><div class="metric-label">Hired</div><div class="metric-value" id="m-hired">0</div><div class="metric-sub" id="m-hired-rate">0% conversion</div></div>
         <div class="metric-card"><div class="metric-label">Offer acceptance</div><div class="metric-value" id="m-offer-rate">—</div><div class="metric-sub">offers vs hired</div></div>
@@ -377,7 +377,38 @@
 
   </main>
 
-  <div class="ts-footer">
+  
+      <!-- REJECTED SECTION -->
+      <div id="rejectedSection" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#FCEBEB;border:0.5px solid #F09595;border-radius:10px;cursor:pointer;user-select:none" onclick="toggleRejected()">
+          <div style="font-size:13px;font-weight:600;color:#8B1A1A;display:flex;align-items:center;gap:8px">
+            <i class="ti ti-ban" style="font-size:14px"></i>Rejected candidates
+            <span id="rejectedCountPill" style="font-size:11px;background:#E24B4A;color:#fff;padding:2px 9px;border-radius:20px">0</span>
+          </div>
+          <div style="font-size:11px;color:#8B1A1A;display:flex;align-items:center;gap:6px;font-weight:500">
+            <span id="rejectedLabel">Show</span>
+            <i class="ti ti-chevron-down" id="rejectedChevron" style="font-size:13px;transition:transform 0.25s"></i>
+          </div>
+        </div>
+        <div id="rejectedTableWrap" style="overflow:hidden;max-height:0;transition:max-height 0.3s ease">
+          <div style="overflow-x:auto;margin-top:8px">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+              <thead>
+                <tr>
+                  <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Candidate</th>
+                  <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Status</th>
+                  <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Reason</th>
+                  <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Rejected on</th>
+                  <th style="background:#FCEBEB;color:#8B1A1A;font-weight:600;padding:8px 10px;text-align:left;border-bottom:0.5px solid #F09595;font-size:11px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rejectedBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    <div class="ts-footer">
     <div class="ts-dot"></div>
     <span>TalentScreen AI · Beta v1.0 · Built for volume hiring</span>
     <div class="ts-dot"></div>
