@@ -2,10 +2,14 @@
 
 // ── NAV ──
 function switchTab(id) {
-  ['screener', 'questions', 'pipeline'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === id);
-    document.getElementById('panel-' + t).classList.toggle('active', t === id);
-  });
+  var tabs = ['screener', 'questions', 'pipeline'];
+  for(var i=0; i<tabs.length; i++) {
+    var t = tabs[i];
+    var tabEl = document.getElementById('tab-' + t);
+    var panelEl = document.getElementById('panel-' + t);
+    if(tabEl) tabEl.classList.toggle('active', t === id);
+    if(panelEl) panelEl.classList.toggle('active', t === id);
+  }
 }
 
 // ── FILE UTILS ──
@@ -1171,14 +1175,4 @@ function toggleRejected() {
 
 document.addEventListener('DOMContentLoaded', () => { renderPipeline(); });
 
-// ── Rejected section toggle ──
-let rejectedVisible = false;
-function toggleRejected() {
-  rejectedVisible = !rejectedVisible;
-  const wrap = document.getElementById('rejectedTableWrap');
-  const label = document.getElementById('rejectedLabel');
-  const chevron = document.getElementById('rejectedChevron');
-  wrap.style.maxHeight = rejectedVisible ? '600px' : '0';
-  label.textContent = rejectedVisible ? 'Hide' : 'Show';
-  chevron.style.transform = rejectedVisible ? 'rotate(180deg)' : 'rotate(0deg)';
-}
+// ── Rejected section toggle handled in pipeline section ──
