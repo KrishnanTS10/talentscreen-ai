@@ -66,16 +66,14 @@ function cleanText(text, maxChars) {
 
 // Dynamic max_tokens: scale with content
 function calcMaxTokens(numCandidates) {
-  // ~180 tokens per candidate output + 300 buffer
-  return Math.min(300 + (numCandidates * 180), 3000);
+  return 25000;
 }
 
 function calcQMaxTokens(numQuestions) {
-  // ~80 tokens per question + 100 buffer
-  return Math.min(100 + (numQuestions * 80), 1800);
+  return 25000;
 }
 
-async function callClaude(prompt, maxTokens = 1000) {
+async function callClaude(prompt, maxTokens = 25000) {
   const apiKey = localStorage.getItem('ts_api_key');
   if (!apiKey) throw new Error('No API key found. Please add your Anthropic API key via the setup link on the login page.');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -87,8 +85,8 @@ async function callClaude(prompt, maxTokens = 1000) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-5',
-      max_tokens: maxTokens,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: Math.min(maxTokens, 25000),
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -224,8 +222,21 @@ CVS: ${cvSections}`;
 
   try {
     const raw = await callClaude(prompt, dynamicTokens);
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const data = JSON.parse(clean);
+    let clean = raw.replace(/```json|```/g, '').trim();
+    let data;
+    try {
+      data = JSON.parse(clean);
+    } catch(parseErr) {
+      const lastBrace = clean.lastIndexOf('}');
+      if (lastBrace > -1) {
+        let repaired = clean.substring(0, lastBrace + 1);
+        const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+        const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+        for (let i = 0; i < openBrackets; i++) repaired += ']';
+        for (let i = 0; i < openBraces; i++) repaired += '}';
+        data = JSON.parse(repaired);
+      } else { throw parseErr; }
+    }
     lastScreenResults = data.candidates || [];
     renderScreenResults(lastScreenResults);
   } catch (e) {
@@ -617,12 +628,30 @@ async function generateQs() {
 
   const qTokens = calcQMaxTokens(selQty);
   var jdPart = jd ? ('JD: ' + cleanText(jd, 1000)) : '';
-  var prompt = 'Generate ' + selQty + ' interview questions for ' + functionName + ' function. Role: ' + role + ', Level: ' + seniority + ', Types: ' + types + '. ' + jdPart + ' Return JSON only: {"questions":[{"number":1,"type":"Behavioural","question":"","what_to_listen_for":""}]}';
+  var prompt = 'Generate ' + selQty + ' interview questions. Function: ' + functionName + '. Role: ' + role + '. Level: ' + seniority + '. Types: ' + types + '. ' + jdPart + ' Return ONLY this JSON structure, no extra text: {"questions":[{"number":1,"type":"Behavioural","question":"full question here","what_to_listen_for":"brief tip"}]}';
 
   try {
     const raw = await callClaude(prompt, qTokens);
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const data = JSON.parse(clean);
+    let clean = raw.replace(/```json|```/g, '').trim();
+    // Fix truncated JSON by attempting to close it
+    let data;
+    try {
+      data = JSON.parse(clean);
+    } catch(parseErr) {
+      // Try to repair truncated JSON
+      const lastBrace = clean.lastIndexOf('}');
+      if (lastBrace > -1) {
+        let repaired = clean.substring(0, lastBrace + 1);
+        // Close any open arrays/objects
+        const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+        const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+        for (let i = 0; i < openBrackets; i++) repaired += ']';
+        for (let i = 0; i < openBraces; i++) repaired += '}';
+        try { data = JSON.parse(repaired); } catch(e2) { throw new Error('Response was cut off — please try again with fewer questions'); }
+      } else {
+        throw new Error('Invalid response — please try again');
+      }
+    }
     renderQuestions(data.questions || [], role, seniority, functionName);
   } catch (e) {
     resultEl.innerHTML = `<div class="alert alert-error"><i class="ti ti-alert-circle" style="font-size:14px"></i>${e.message}</div>`;
