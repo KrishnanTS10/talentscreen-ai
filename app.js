@@ -394,35 +394,7 @@ function showComparison() {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
-// ── IMPROVEMENT 4: Add All to Pipeline ──
-function addAllToPipeline() {
-  if (!lastScreenResults.length) return;
-  let added = 0;
-  lastScreenResults.forEach(c => {
-    if (!pCandidates.find(p => p.name === c.name)) {
-      pCandidates.push({
-        id: Date.now() + Math.random(),
-        name: c.name,
-        score: c.score,
-        stage: 'Applied',
-        date: todayStr(),
-        notes: `${c.verdict} — ${(c.matched_skills||[]).slice(0,3).join(', ')}`
-      });
-      added++;
-    }
-  });
-  pCandidates.sort((a, b) => b.score - a.score);
-  renderPipeline();
-  const btn = event.target.closest('button');
-  btn.innerHTML = `<i class="ti ti-check" style="font-size:14px"></i>${added} added to Pipeline`;
-  btn.style.background = '#EAF3DE';
-  btn.style.color = '#085041';
-  setTimeout(() => {
-    btn.innerHTML = '<i class="ti ti-layout-kanban" style="font-size:14px"></i>Add all to Pipeline';
-    btn.style.background = '#EAF3DE';
-  }, 2000);
-  setTimeout(() => switchTab('pipeline'), 1500);
-}
+// addAllToPipeline handled in pipeline section
 
 // ── IMPROVEMENT 1: PDF Report Export ──
 function exportPDFReport() {
